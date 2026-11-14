@@ -4,16 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#182840">
-  <meta name="description" content="Іскра Арена — яскрава українська PWA-гра. Вісім героїв, зарості для засідок, Панді, Котик та чотири режими бою.">
+  <meta name="description" content="Іскра Арена — яскрава українська PWA-гра. Вісім героїв, зарості для засідок, трампліни, ящики та п’ять режимів бою.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Іскра Арена">
   <title>Іскра Арена · Сезон Панді</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=2.4">
+  <link rel="manifest" href="./manifest.webmanifest?v=2.5">
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="apple-touch-icon" href="./icon-192.png">
-  <link rel="stylesheet" href="./style.css?v=2.4">
+  <link rel="stylesheet" href="./style.css?v=2.5">
 </head>
 <body>
 <main>
@@ -38,7 +38,7 @@
         <div class="season-banner">
           <span>🌿 НОВИЙ СЕЗОН</span>
           <strong>Бамбукові секрети</strong>
-          <p>Сховайся в кущах, підкрадися до суперників і зіграй за Панді або пухнастого Котика!</p>
+          <p>Випробуй режим «Зіткнення», стрибай на трамплінах і зіграй за оновлених бійців!</p>
         </div>
         <div class="play-grid">
           <section class="hero-sheet" aria-labelledby="heroName">
@@ -108,12 +108,12 @@
       <div class="tab-panel" data-panel="maps" hidden>
         <section class="arenas">
           <div class="section-eyebrow">🗺️ ДОСЛІДЖУЙ СВІТИ</div>
-          <h2>Арени <small>6 різних локацій</small></h2>
+          <h2>Арени <small>6 інтерактивних локацій</small></h2>
           <div id="maps"></div>
           <p id="mapInfo"></p>
           <div class="brush-tip">
-            <strong>🌿 Таємниця заростей</strong>
-            <span>Зайди у кущі — вороги здалеку тебе не помітять. Стріляй у підозрілі кущі, щоб перевірити засідку!</span>
+            <strong>🚀 Трампліни, озера та бочки</strong>
+            <span>На кожній арені є жовті пружини для стрибків через перешкоди, озера (кулі летять над водою!) і ящики з кубиками сили та вибуховими бочками.</span>
           </div>
         </section>
       </div>
@@ -123,22 +123,25 @@
         <div class="panel-grid">
           <section class="card-box">
             <div class="section-eyebrow">🎮 МЕХАНІКИ BRAWL STARS</div>
-            <h2>Як перемагати</h2>
+            <h2>Нові можливості</h2>
             <ul class="tips-list">
-              <li><b>Боєзапас (3 заряди):</b> під смужкою здоров’я є 3 помаранчеві поділки. Кожен постріл витрачає 1 заряд, який швидко відновлюється.</li>
-              <li><b>Суперудар від влучань:</b> фіолетова кнопка Суперуміння заряджається швидше, коли ти влучаєш по суперниках!</li>
-              <li><b>Автолікування:</b> якщо 3 секунди не стріляти й не отримувати шкоди, герой починає автоматично відновлювати здоров’я.</li>
-              <li><b>Перевірка кущів:</b> кнопка «Вогонь» стріляє у напрямку руху, навіть коли поруч не видно ворога — перевіряй кущі!</li>
+              <li><b>Кристали (Gem Grab):</b> при нокауті зібрані кристали випадають на землю, а при 7+ кристалах вмикається 10-секундний таймер утримання!</li>
+              <li><b>Зіткнення (Showdown):</b> розбивай ящики з кубиками сили (⚡+1 HP і +15% шкоди), підривай червоні бочки й тікай від отруйного туману.</li>
+              <li><b>Пружини та вода:</b> ставай на жовтий трамплін, щоб перелетіти через озеро або стіну прямо в засідку.</li>
             </ul>
           </section>
           <section class="card-box backup">
-            <div class="section-eyebrow">💾 ПЕРЕНЕСЕННЯ ЗБЕРЕЖЕНЬ</div>
-            <h2>Резервна копія та оновлення</h2>
-            <p>Скопіюй код прогресу для збереження або натисни «Оновити кеш гри», якщо на телефоні застрягла стара версія.</p>
-            <textarea id="backupText" rows="3" spellcheck="false" placeholder="Код збереження з іншого сайту…" aria-label="Код збереження"></textarea>
+            <div class="section-eyebrow">💾 ЗБЕРЕЖЕННЯ ПРОГРЕСУ</div>
+            <h2>Файл, посилання або код</h2>
+            <p>Прогрес зберігається автоматично після кожного бою. Щоб перенести його на інший телефон чи планшет, завантаж файл <code>.json</code> або поділись прямим посиланням:</p>
+            <textarea id="backupText" rows="3" spellcheck="false" placeholder="Код або посилання збереження…" aria-label="Код збереження"></textarea>
+            <input type="file" id="uploadSaveInput" accept=".json,application/json,text/plain" hidden>
             <div class="backup-actions">
-              <button type="button" id="exportProgress">Показати код</button>
-              <button type="button" id="importProgress">Відновити з коду</button>
+              <button type="button" id="downloadSave">📥 Файл .json</button>
+              <button type="button" id="uploadSaveBtn">📂 Завантажити файл</button>
+              <button type="button" id="shareSaveLink">🔗 Посилання-збереження</button>
+              <button type="button" id="exportProgress">📋 Скопіювати код</button>
+              <button type="button" id="importProgress">✅ Відновити з поля</button>
               <button type="button" id="resetCache">🔄 Оновити кеш гри</button>
             </div>
             <small id="backupStatus" role="status"></small>
@@ -187,13 +190,13 @@
 
   <p id="storageMsg" hidden>Збереження в цьому браузері недоступне. Прогрес діє до закриття гри.</p>
 </main>
-<script src="./data.js?v=2.4"></script>
-<script src="./art.js?v=2.4"></script>
-<script src="./game.js?v=2.4"></script>
+<script src="./data.js?v=2.5"></script>
+<script src="./art.js?v=2.5"></script>
+<script src="./game.js?v=2.5"></script>
 <script>
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=2.4', { scope: './', updateViaCache: 'none' }).then(reg => {
+    navigator.serviceWorker.register('./sw.js?v=2.5', { scope: './', updateViaCache: 'none' }).then(reg => {
       reg.update();
       reg.addEventListener('updatefound', () => {
         const nw = reg.installing;

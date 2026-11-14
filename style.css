@@ -1,4 +1,12 @@
 @font-face {
+  font-family: "SupercellHeadline";
+  src: url("./SupercellHeadline-Heavy.ttf") format("truetype");
+  font-weight: 700 1000;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: "SupercellText";
   src: url("./SupercellText_Bd.ttf") format("truetype");
   font-weight: 700 1000;
@@ -17,7 +25,7 @@
   --mint: #99edb2;
   --gold: #ffd270;
   --pink: #fe8fa8;
-  --font-display: "SupercellText", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "SupercellHeadline", "SupercellText", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -63,8 +71,23 @@ main {
   overflow: hidden;
 }
 
-h1, h2, .identity strong, .career, .season-banner strong, .tab-btn small, #start, #hud > * {
+/* ФІРМОВА ТИПОГРАФІКА BRAWL STARS З КОНТУРОМ ТА ОБ’ЄМНОЮ ТІННЮ */
+h1, h2, .identity strong, .career, .season-banner strong, .tab-btn small, #start, #hud > *, #controls button {
   font-family: var(--font-display);
+}
+
+h1, .identity strong, #modal h2 {
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  -webkit-text-stroke: 1.5px #0d182b;
+  paint-order: stroke fill;
+  text-shadow: 0 3px 0 #0d182b, 0 5px 10px #00000055;
+}
+
+h2, .career, .season-banner strong, .tab-btn small {
+  -webkit-text-stroke: 1px #0e1a30;
+  paint-order: stroke fill;
+  text-shadow: 0 2px 0 #0e1a30;
 }
 
 button, select, textarea { font: inherit; }
@@ -126,11 +149,9 @@ label { color: #e8ecf3; font-size: 12.5px; font-weight: 800; letter-spacing: .01
 }
 .identity strong {
   display: block;
-  font-size: clamp(18px, 2.2vw, 26px);
+  font-size: clamp(19px, 2.3vw, 27px);
   font-weight: 900;
-  letter-spacing: -.02em;
   line-height: 1.1;
-  text-shadow: 0 3px #0e1b38;
   white-space: nowrap;
 }
 .identity em { font-style: normal; color: var(--gold); }
@@ -166,7 +187,7 @@ label { color: #e8ecf3; font-size: 12.5px; font-weight: 800; letter-spacing: .01
   padding: 6px 11px;
   border-radius: 12px;
   color: #fff0b8;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 900;
   white-space: nowrap;
 }
@@ -220,7 +241,7 @@ label { color: #e8ecf3; font-size: 12.5px; font-weight: 800; letter-spacing: .01
   box-shadow: 0 3px 0 #101b30;
 }
 .tab-btn span { font-size: 17px; line-height: 1.1; pointer-events: none; }
-.tab-btn small { font-size: 11px; font-weight: 800; color: #c7d9ec; letter-spacing: .01em; pointer-events: none; }
+.tab-btn small { font-size: 11px; font-weight: 800; color: #c7d9ec; letter-spacing: .02em; pointer-events: none; }
 .tab-btn[aria-selected="true"] {
   border-color: var(--gold);
   background: linear-gradient(#4d6b94, #2f486d);
@@ -287,7 +308,6 @@ label { color: #e8ecf3; font-size: 12.5px; font-weight: 800; letter-spacing: .01
   overflow: hidden;
 }
 
-/* HERO SHEET — FLEX COLUMN SO MASTERY BAR NEVER OVERLAPS TEXT */
 .hero-sheet {
   position: relative;
   isolation: isolate;
@@ -339,11 +359,9 @@ label { color: #e8ecf3; font-size: 12.5px; font-weight: 800; letter-spacing: .01
 }
 .hero-copy h1 {
   margin: 4px 0 6px;
-  font-size: clamp(28px, 4.2vw, 52px);
+  font-size: clamp(28px, 4.2vw, 48px);
   font-weight: 900;
-  letter-spacing: -.03em;
-  line-height: 1.05;
-  text-shadow: 0 4px 0 #152b4a9e;
+  line-height: 1.08;
 }
 .hero-copy > strong {
   display: block;
@@ -399,8 +417,8 @@ label { color: #e8ecf3; font-size: 12.5px; font-weight: 800; letter-spacing: .01
   gap: 8px;
 }
 .section-eyebrow { color: #9ee9d2; font-size: 10.5px; font-weight: 900; letter-spacing: .14em; margin-bottom: 2px; }
-#lobby h2 { font-size: 20px; margin: 0 0 6px; letter-spacing: -.02em; font-weight: 900; }
-#lobby h2 small { font-size: 11.5px; white-space: nowrap; color: #bfcee0; font-weight: 700; letter-spacing: normal; font-family: system-ui, sans-serif; }
+#lobby h2 { font-size: 20px; margin: 0 0 6px; letter-spacing: .01em; font-weight: 900; }
+#lobby h2 small { font-size: 11.5px; white-space: nowrap; color: #bfcee0; font-weight: 700; letter-spacing: normal; font-family: system-ui, sans-serif; -webkit-text-stroke: 0; text-shadow: none; }
 .launch h2 { font-size: 23px; margin-bottom: 2px; }
 
 .launch-controls {
@@ -447,7 +465,7 @@ label { color: #e8ecf3; font-size: 12.5px; font-weight: 800; letter-spacing: .01
   background: linear-gradient(#ffe797, #ffc858);
   border: 2px solid #fff2af;
   border-bottom: 4px solid #d88f38;
-  color: #342844;
+  color: #2c203b;
   text-shadow: 0 1px #fff8b7;
   font-weight: 900;
   box-shadow: 0 4px 0 #7b5066;
@@ -461,7 +479,7 @@ label { color: #e8ecf3; font-size: 12.5px; font-weight: 800; letter-spacing: .01
   padding: 12px 18px;
   border-radius: 15px;
   margin-top: 2px;
-  letter-spacing: .02em;
+  letter-spacing: .03em;
 }
 
 /* HEROES, MAPS, PROFILE TABS */
@@ -552,9 +570,9 @@ label { color: #e8ecf3; font-size: 12.5px; font-weight: 800; letter-spacing: .01
   resize: vertical;
   overflow-wrap: anywhere;
 }
-.backup-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 7px; }
-.backup-actions button { font-size: 12px; padding: 7px 11px; }
-#backupStatus { display: block; margin-top: 6px; color: var(--mint); }
+.backup-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 7px; }
+.backup-actions button { font-size: 11.5px; padding: 8px 9px; text-align: center; }
+#backupStatus { display: block; margin-top: 6px; color: var(--mint); font-weight: 700; }
 
 /* BATTLE MODE */
 body.playing .topbar { display: none !important; }
@@ -605,7 +623,8 @@ body.playing main {
   border-radius: 10px;
   padding: 5px 9px;
   font-size: 11.5px;
-  max-width: 55vw;
+  max-width: 56vw;
+  text-shadow: 0 2px 0 #0c1729;
 }
 #hud #stealth { background: #225d47e8; color: #d8ffac; border: 1px solid #b9ffaa; }
 #hud #stealth[data-revealed="true"] { background: #713d42e8; color: #ffe4bb; border-color: #ffbe91; }
@@ -720,7 +739,7 @@ footer#help { flex: 0 0 auto; margin: 0; text-align: center; font-size: 11px; co
   .season-banner p { min-width: 100%; font-size: 11px; }
   .hero-sheet { min-height: 195px; padding: 13px 14px 10px; }
   .hero-copy { width: 58%; }
-  .hero-copy h1 { font-size: clamp(26px, 7.5vw, 38px); margin: 2px 0 4px; }
+  .hero-copy h1 { font-size: clamp(24px, 7vw, 36px); margin: 2px 0 4px; }
   .hero-copy > strong { font-size: 13.5px; }
   .hero-copy p { font-size: 11.5px; margin: 4px 0 8px; }
   #portrait { width: 46%; height: 74%; right: 0; top: 4px; }
@@ -762,7 +781,7 @@ footer#help { flex: 0 0 auto; margin: 0; text-align: center; font-size: 11px; co
     gap: 10px;
   }
   .hero-sheet { min-height: 185px; padding: 11px 13px 9px; }
-  .hero-copy h1 { font-size: 26px; margin: 2px 0 3px; }
+  .hero-copy h1 { font-size: 24px; margin: 2px 0 3px; }
   .hero-copy > strong { font-size: 13px; }
   .hero-copy p { font-size: 11px; margin: 3px 0 6px; }
   .mastery { padding: 5px 9px; }

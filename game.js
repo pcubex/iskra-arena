@@ -45,6 +45,20 @@ function sfx(type) {
       gain.gain.setValueAtTime(0.13, now);
       gain.gain.linearRampToValueAtTime(0.001, now + 0.23);
       osc.start(now); osc.stop(now + 0.23);
+    } else if (type === 'jump') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(240, now);
+      osc.frequency.exponentialRampToValueAtTime(640, now + 0.18);
+      gain.gain.setValueAtTime(0.11, now);
+      gain.gain.linearRampToValueAtTime(0.001, now + 0.19);
+      osc.start(now); osc.stop(now + 0.19);
+    } else if (type === 'boom') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, now);
+      osc.frequency.exponentialRampToValueAtTime(42, now + 0.24);
+      gain.gain.setValueAtTime(0.14, now);
+      gain.gain.linearRampToValueAtTime(0.001, now + 0.25);
+      osc.start(now); osc.stop(now + 0.25);
     } else if (type === 'ko') {
       osc.type = 'square';
       osc.frequency.setValueAtTime(360, now);
@@ -103,15 +117,19 @@ function save() {
   catch { $('storageMsg').hidden = false; }
 }
 
-let state = 'menu', units = [], gems = [], loot = [], shots = [], meteors = [], rings = [], floatTexts = [], flag, previewGem, left, spawnIn, lootIn, supply, blocks, background;
+let state = 'menu', units = [], gems = [], loot = [], shots = [], meteors = [], rings = [], floatTexts = [], crates = [], water = [], pads = [], flag, previewGem, left, spawnIn, lootIn, supply, blocks, background;
 let moveStick = [0, 0], pointer = null, held = false, last = performance.now();
 let brush = [], temporaryBrush = [], particles = [];
+let gemCountdown = 0, countdownLeader = null, stormInset = 0, stormTick = 0;
 const keys = new Set(), dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-const blocked = (x, y, r) => x < r || x > W - r || y < r || y > H - r || blocks.some(([a, b, w, h]) => x > a - r && x < a + w + r && y > b - r && y < b + h + r);
+
+// Стіни блокують і рух, і постріли; вода блокує тільки рух по землі (кулі та стрибки пролітають!)
+const blockedWall = (x, y, r) => x < r || x > W - r || y < r || y > H - r || blocks.some(([a, b, w, h]) => x > a - r && x < a + w + r && y > b - r && y < b + h + r);
+const blockedWalk = (x, y, r) => blockedWall(x, y, r) || (water && water.some(([a, b, w, h]) => x > a - r && x < a + w + r && y > b - r && y < b + h + r));
 
 function floatText(x, y, text, color = '#ffe875') {
-  floatTexts.push({ x, y: y - 22, text, color, t: 0.75 });
-  if (floatTexts.length > 40) floatTexts.shift();
+  floatTexts.push({ x, y: y - 22, text, color, t: 0.8 });
+  if (floatTexts.length > 45) floatTexts.shift();
 }
 
 function options(id, rows, value) {
@@ -132,6 +150,7 @@ const invasionGoals = [
 ];
 let kills = 0, eliminations = 0, combo = 0, comboClock = 0;
 const invasion = () => profile.rule === 2;
+const showdown = () => profile.rule === 4;
 const quota = () => invasionGoals[profile.difficulty];
 const cleared = () => units[0].score >= quota().gems && kills >= quota().kills;
 function tally() {
@@ -141,7 +160,7 @@ function tally() {
 function zombieSpawn(z) {
   const player = units[0];
   const edges = [{ x: 38, y: 38 }, { x: W - 38, y: 38 }, { x: 38, y: H - 38 }, { x: W - 38, y: H - 38 }, { x: W / 2, y: H - 28 }, { x: W / 2, y: 28 }];
-  const choices = edges.filter(p => dist(p, player) > 220 && !blocked(p.x, p.y, 16));
+  const choices = edges.filter(p => dist(p, player) > 220 && !blockedWalk(p.x, p.y, 16));
   Object.assign(z, (choices.length ? choices : edges)[Math.floor(Math.random() * (choices.length || edges.length))]);
   z.hp = z.max; z.dead = 0; z.shield = 0; z.windup = 0; z.cd = .5; z.way = null; z.lastSeen = null;
 }
@@ -217,7 +236,7 @@ function lobby() {
   $('lobby').style.setProperty('--hero-color', h.color);
   const portrait = $('portrait').getContext('2d');
   portrait.clearRect(0, 0, 420, 380);
-  sprite(portrait, k, 223, 209, 6.5, r.wear);
+  sprite(portrait, k, 223, 209, 6.4, r.wear);
   $('mapInfo').textContent = m.hint + ' 🌿 У заростях тебе не бачать здалеку; стрільба тимчасово видає позицію.';
   if ($('activeMapLabel')) $('activeMapLabel').textContent = m.name;
 
@@ -262,11 +281,13 @@ function lobby() {
   $('heroStats').textContent = '♥ ' + (h.hp + r.training) + ' здоров’я · ⚡ ' + h.speed + ' швидкість · 🎯 ' + Math.round(1 / h.rate * 10) / 10 + ' атаки/с · ✦ супер: ' + h.cd + ' с · Сила ' + (100 + r.power * 15) + '%';
   $('mission').textContent = invasion()
     ? 'Збери ' + quota().gems + ' кристалів і переможи ' + quota().kills + ' зомбі за ' + quota().seconds + ' с. Відступай, коли зомбі замахується.'
-    : profile.rule === 1
-      ? 'Забери прапор і повернись до своєї бази. Перший із трьома доставками перемагає.'
-      : profile.rule === 3
-        ? 'Арена мисливців: першим здійсни 8 нокаутів. Після поразки повертайся до бою.'
-        : 'Першим збери 7 кристалів. ' + (profile.map === 1 ? 'У каньйоні при нокауті випадає один кристал.' : 'Після нокауту зібране зберігається.');
+    : showdown()
+      ? 'Зіткнення (Showdown): розбивай ящики з кубиками сили, тікай від отруйного туману й залишся останнім на арені!'
+      : profile.rule === 1
+        ? 'Забери прапор і повернись до своєї бази. Перший із трьома доставками перемагає.'
+        : profile.rule === 3
+          ? 'Арена мисливців: першим здійсни 8 нокаутів. Після поразки повертайся до бою.'
+          : 'Збери 7 кристалів і втримай перевагу 10 секунд! При нокауті зібрані кристали випадають на землю.';
 }
 
 for (const id of ['difficulty', 'rule', 'banner', 'wear', 'charm']) {
@@ -291,25 +312,34 @@ function clearInput() {
 function point() {
   for (let i = 0; i < 200; i++) {
     const p = { x: 85 + Math.random() * 750, y: 58 + Math.random() * 425 };
-    if (!blocked(p.x, p.y, 32)) return p;
+    if (!blockedWalk(p.x, p.y, 32)) return p;
   }
   return { x: 280, y: 270 };
 }
 
 function start() {
   sfx('tap');
-  blocks = maps[profile.map].blocks;
+  const m = maps[profile.map];
+  blocks = m.blocks;
+  water = m.water || [];
+  pads = m.pads || [];
+  crates = (m.crates || []).map(([x, y, kind]) => ({ x, y, kind, hp: kind === 'barrel' ? 2 : 3, max: kind === 'barrel' ? 2 : 3 }));
   brush = brushLayouts[profile.map].map(b => [...b]);
   temporaryBrush = [];
   particles = [];
   floatTexts = [];
+  gemCountdown = 0;
+  countdownLeader = null;
+  stormInset = 0;
+  stormTick = 0;
+
   units = [...bases, { x: 80, y: 450 }, { x: 455, y: 35 }].slice(0, 3 + profile.difficulty).map((base, i) => {
     const kind = i ? Math.floor(Math.random() * heroes.length) : profile.hero, h = heroes[kind];
     return {
       ...base, base, kind, i,
       hp: h.hp + (i ? 0 : profile.roster[kind].training),
       max: h.hp + (i ? 0 : profile.roster[kind].training),
-      ammo: 3, outOfCombat: 0,
+      ammo: 3, outOfCombat: 0, cubes: 0, jumpTime: 0, jumpVx: 0, jumpVy: 0, padCool: 0, eliminated: false,
       slow: 0, hits: 0, boost: 0, score: 0, picks: 0,
       cd: i ? 0.6 : 0, cool: i ? h.cd * 0.5 : h.cd * 0.35,
       dome: 0, dead: 0, shield: 1,
@@ -321,9 +351,9 @@ function start() {
   if (invasion()) {
     units.slice(1).forEach(z => { z.zombie = true; z.max = 2; zombieSpawn(z); });
   }
-  gems = (profile.rule === 1 || profile.rule === 3) ? [] : Array.from({ length: 5 }, point);
+  gems = (profile.rule === 1 || profile.rule === 3 || showdown()) ? [] : Array.from({ length: 5 }, point);
   loot = []; shots = []; meteors = []; rings = [];
-  left = invasion() ? quota().seconds : 90;
+  left = invasion() ? quota().seconds : showdown() ? 110 : 95;
   supply = { ...point(), wait: 12 };
   spawnIn = 2; lootIn = 5; previewGem = point();
   flag = { x: 460, y: 270, carrier: null };
@@ -382,8 +412,15 @@ function finish() {
   if (state !== 'play') return;
   state = 'result';
   clearInput();
-  const a = units[0], best = Math.max(...units.filter(b => !b.zombie).map(b => b.score));
-  const win = invasion() ? cleared() : a.score === best && units.filter(b => b.score === best).length === 1;
+  const a = units[0];
+  let win = false;
+  if (invasion()) win = cleared();
+  else if (showdown()) win = !a.eliminated && !a.dead && units.slice(1).every(b => b.eliminated || b.dead);
+  else if (profile.rule === 0 && countdownLeader) win = countdownLeader === a;
+  else {
+    const best = Math.max(...units.filter(b => !b.zombie).map(b => b.score));
+    win = a.score === best && units.filter(b => b.score === best).length === 1;
+  }
   if (win) sfx('win'); else sfx('ko');
   const r = profile.roster[a.kind], prev = levelOf(r.xp), xp = 12 + Math.min(14, a.picks * 2) + (win ? 8 : 0);
   const reward = win ? cupRewards[profile.difficulty] : 0;
@@ -395,9 +432,10 @@ function finish() {
   if (prev < 3 && levelOf(r.xp) === 3) earned.push(['wear', 2, 'Зоряна стрічка']);
   const arena = maps.find(m => m.unlock === profile.matches);
   $('overline').textContent = heroes[a.kind].name + ' · +' + xp + ' досвіду · +' + reward + ' 🏆';
+  const scoreMsg = invasion() ? tally() : showdown() ? ('Кубики сили: ' + (a.cubes || 0) + ' · Залишилось бійців: ' + units.filter(u => !u.eliminated).length) : ('Рахунок: ' + units.map(b => b.score).join(' / '));
   modal(
-    win ? 'Перемога!' : invasion() ? 'Час вичерпано' : a.score === best ? 'Нічия' : 'Бій завершено',
-    (invasion() ? tally() : 'Рахунок: ' + units.map(b => b.score).join(' / ')) + '. ' + (arena ? 'Нова арена: ' + arena.name + '. ' : '') + earned.map(e => 'Здобич: ' + e[2] + '.').join(' '),
+    win ? 'Перемога!' : showdown() && a.eliminated ? 'Тебе вибито!' : invasion() ? 'Час вичерпано' : 'Бій завершено',
+    scoreMsg + '. ' + (arena ? 'Нова арена: ' + arena.name + '. ' : '') + earned.map(e => 'Здобич: ' + e[2] + '.').join(' '),
     'До героїв'
   );
   if (win) {
@@ -421,8 +459,9 @@ function finish() {
 function move(a, dx, dy, speed, dt) {
   const len = Math.max(1, Math.hypot(dx, dy));
   const x = a.x + dx / len * speed * dt, y = a.y + dy / len * speed * dt;
-  if (!blocked(x, a.y, 14)) a.x = x;
-  if (!blocked(a.x, y, 14)) a.y = y;
+  const check = a.jumpTime > 0 ? blockedWall : blockedWalk;
+  if (!check(x, a.y, 14)) a.x = x;
+  if (!check(a.x, y, 14)) a.y = y;
 }
 
 function waypoint(a, g) {
@@ -438,7 +477,7 @@ function waypoint(a, g) {
     }
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const x = id % cols + dx, y = Math.floor(id / cols) + dy, n = y * cols + x;
-      if (x < 0 || y < 0 || x >= cols || y >= rows || prev.has(n) || blocked(x * size + 10, y * size + 10, 15)) continue;
+      if (x < 0 || y < 0 || x >= cols || y >= rows || prev.has(n) || blockedWalk(x * size + 10, y * size + 10, 15)) continue;
       prev.set(n, id); queue.push(n);
     }
   }
@@ -456,7 +495,7 @@ function hiddenByBrush(observer, target) {
 function visible(a, b) {
   if (hiddenByBrush(a, b)) return false;
   const n = Math.ceil(dist(a, b) / 10);
-  for (let i = 1; i < n; i++) if (blocked(a.x + (b.x - a.x) * i / n, a.y + (b.y - a.y) * i / n, 4)) return false;
+  for (let i = 1; i < n; i++) if (blockedWall(a.x + (b.x - a.x) * i / n, a.y + (b.y - a.y) * i / n, 4)) return false;
   return true;
 }
 function seenOpponents(a) { return opponents(a).filter(b => visible(a, b)); }
@@ -470,14 +509,38 @@ function sparkle(x, y, color, count = 8, power = 75) {
 }
 
 function closest(a, list) { return list.reduce((prev, v) => !prev || dist(a, v) < dist(a, prev) ? v : prev, null); }
-function opponents(a) { return units.filter(b => b !== a && !b.dead); }
+function opponents(a) { return units.filter(b => b !== a && !b.dead && !b.eliminated); }
 
-// --- УНІКАЛЬНІ АТАКИ ТА ПЕРЕВІРКА КУЩІВ ---
+function damageCrate(cr, dmg, attacker) {
+  cr.hp -= dmg;
+  sparkle(cr.x, cr.y, cr.kind === 'barrel' ? '#ff9d5c' : '#ffd885', 6, 65);
+  floatText(cr.x, cr.y, '-' + Math.round(dmg * 10) / 10, '#ffd885');
+  if (cr.hp > 0) return;
+  const idx = crates.indexOf(cr);
+  if (idx >= 0) crates.splice(idx, 1);
+  if (cr.kind === 'barrel') {
+    sfx('boom');
+    rings.push({ x: cr.x, y: cr.y, r: 96, t: .4, color: '#ff8a47' });
+    sparkle(cr.x, cr.y, '#ff7340', 22, 130);
+    for (const u of units) {
+      if (!u.dead && !u.eliminated && dist(u, cr) <= 96) hit(u, 2, attacker);
+    }
+  } else {
+    sfx('gem');
+    loot.push({ x: cr.x, y: cr.y, kind: 'cube' });
+  }
+}
+
 function fire(a) {
-  if (a.cd > 0 || a.dead || (a.ammo !== undefined && a.ammo < 1)) return;
+  if (a.cd > 0 || a.dead || a.eliminated || (a.ammo !== undefined && a.ammo < 1)) return;
   const maxRange = a.kind === 1 ? 260 : a.kind === 5 ? 360 : 418;
   const targets = seenOpponents(a).filter(b => dist(a, b) <= maxRange);
-  const enemy = a.i && profile.rule === 1 && profile.difficulty && targets.includes(flag.carrier) ? flag.carrier : closest(a, targets);
+  let enemy = a.i && profile.rule === 1 && profile.difficulty && targets.includes(flag.carrier) ? flag.carrier : closest(a, targets);
+  // Якщо поруч немає ворога, цілимось у найближчий ящик або бочку
+  if (!enemy) {
+    const nearCrate = closest(a, crates.filter(cr => dist(a, cr) <= maxRange * 0.85));
+    if (nearCrate) enemy = nearCrate;
+  }
 
   if (a.i && (!enemy || dist(a, enemy) > maxRange)) return;
 
@@ -485,7 +548,6 @@ function fire(a) {
     const error = a.i ? [.26, .095, .035][profile.difficulty] * (Math.random() * 2 - 1) : 0;
     a.angle = Math.atan2(enemy.y - a.y, enemy.x - a.x) + error;
   } else {
-    // Для гравця дозволяємо стріляти у напрямку руху (щоб перевіряти кущі!)
     a.angle = a.heading || 0;
   }
 
@@ -493,11 +555,6 @@ function fire(a) {
   a.outOfCombat = 0;
   if (!a.i) sfx('shoot');
 
-  // Унікальні патерни пострілів залежно від героя:
-  // 1 (Бастіон): 3 широкі снаряди дробовика ближньої дії
-  // 3 (Віхола): 3 крижані снаряди
-  // 5 (Верба): широка лікувальна куля
-  // 6 (Панді), 7 (Котик): подвійний швидкий постріл
   const count = (a.kind === 1 || a.kind === 3) ? 3 : (a.kind === 6 || a.kind === 7) ? 2 : 1;
   const spread = a.kind === 1 ? .28 : a.kind === 6 ? .20 : a.kind === 7 ? .15 : .17;
   const life = a.kind === 1 ? .62 : a.kind === 5 ? 1.0 : 1.14;
@@ -521,16 +578,16 @@ function fire(a) {
 }
 
 function hit(b, n, attacker) {
-  if (b.dead || b.shield > 0 || b.dome > 0) return;
+  if (b.dead || b.eliminated || b.shield > 0 || b.dome > 0) return;
   const upgrade = attacker && !attacker.i && !attacker.zombie ? profile.roster[attacker.kind].power : 0;
-  const dmg = Math.round(n * (1 + upgrade * .15) * 10) / 10;
+  const cubeBonus = attacker ? (attacker.cubes || 0) * 0.15 : 0;
+  const dmg = Math.round(n * (1 + upgrade * .15 + cubeBonus) * 10) / 10;
   b.hp -= dmg;
   b.outOfCombat = 0;
   b.reveal = Math.max(b.reveal || 0, .5);
   floatText(b.x, b.y, '-' + dmg, b.i ? '#ffe27a' : '#ff7b7b');
   if (attacker === units[0] || b === units[0]) sfx('hit');
 
-  // Зарядка Суперуміння від влучань (як у Brawl Stars!)
   if (attacker && !attacker.zombie) {
     attacker.cool = Math.max(0, (attacker.cool || 0) - 1.35);
   }
@@ -548,13 +605,36 @@ function hit(b, n, attacker) {
   rings.push({ x: b.x, y: b.y, r: 32, t: .4, color: '#ffe7a1' });
   if (!b.zombie) sfx('ko');
   if (b.zombie) { kills++; gems.push({ x: b.x, y: b.y }); return; }
+
+  // Режим Зіткнення (Showdown): вибулий залишає кубик сили і більше не відроджується
+  if (showdown()) {
+    b.eliminated = true;
+    loot.push({ x: b.x, y: b.y, kind: 'cube' });
+    if (attacker && !attacker.i) { eliminations++; a_score_bump(attacker); }
+    if (b === units[0] || units.slice(1).every(u => u.eliminated)) setTimeout(finish, 350);
+    return;
+  }
+
   if (profile.rule === 3 && attacker && attacker !== b && !attacker.zombie) {
     attacker.score++; attacker.picks++;
     if (!attacker.i) { eliminations++; combo = comboClock > 0 ? combo + 1 : 1; comboClock = 7; }
   }
   if (flag.carrier === b) { flag = { x: b.x, y: b.y, carrier: null }; }
-  if (profile.rule === 0 && profile.map === 1 && b.score) { b.score--; gems.push({ x: b.x, y: b.y }); }
+
+  // У режимі «Кристали» (Gem Grab) при нокауті випадають зібрані кристали (до 5 шт. навколо)
+  if (profile.rule === 0 && b.score > 0) {
+    const dropCount = Math.min(b.score, 5);
+    b.score -= dropCount;
+    for (let d = 0; d < dropCount; d++) {
+      const ang = (Math.PI * 2 * d) / dropCount;
+      const gx = Math.max(40, Math.min(W - 40, b.x + Math.cos(ang) * 24));
+      const gy = Math.max(40, Math.min(H - 40, b.y + Math.sin(ang) * 24));
+      gems.push({ x: gx, y: gy });
+    }
+    floatText(b.x, b.y, '-' + dropCount + ' ◆', '#ff927e');
+  }
 }
+function a_score_bump(u) { u.score++; u.picks++; }
 
 function collect(a) {
   const idx = gems.findIndex(g => dist(g, a) < 22);
@@ -567,17 +647,16 @@ function collect(a) {
 }
 
 function cast(a) {
-  if (state !== 'play' || a.dead || a.cool > 0) return;
+  if (state !== 'play' || a.dead || a.eliminated || a.cool > 0) return;
   const h = heroes[a.kind], charmed = !a.i && profile.roster[a.kind].charm;
   if (!a.i) sfx('super');
 
   if (a.kind === 0) {
-    // Рись: ривок + коротка невразливість під час ривка
     a.shield = Math.max(a.shield, 0.35);
     const struck = new Set();
     for (let j = 0; j < 36; j++) {
       const x = a.x + 4 * Math.cos(a.heading), y = a.y + 4 * Math.sin(a.heading);
-      if (blocked(x, y, 14)) break;
+      if (blockedWall(x, y, 14)) break;
       a.x = x; a.y = y;
       if (j % 6 === 0) rings.push({ x, y, r: 15, t: .4, color: h.color });
       for (const b of opponents(a)) {
@@ -585,7 +664,7 @@ function cast(a) {
       }
       if (charmed && (profile.rule === 0 || invasion())) {
         collect(a);
-        if (invasion() ? cleared() : a.score >= 7) { finish(); break; }
+        if (invasion() && cleared()) { finish(); break; }
       }
     }
   } else if (a.kind === 1) {
@@ -597,7 +676,6 @@ function cast(a) {
     rings.push({ x: a.x, y: a.y, r: 140, t: .4, color: h.color });
     if (charmed) { a.hp = Math.min(a.max, a.hp + 2); floatText(a.x, a.y, '+2 ♥', '#9dffb0'); }
   } else if (a.kind === 4) {
-    // Грім: громовий удар + відштовхування ворогів (knockback)
     for (const b of opponents(a)) {
       if (dist(a, b) < 128) {
         const ang = Math.atan2(b.y - a.y, b.x - a.x);
@@ -623,12 +701,11 @@ function cast(a) {
     rings.push({ x: a.x, y: a.y, r: 86, t: .4, color: '#acffb1' });
     sparkle(a.x, a.y, '#d5ff9f', 26, 115);
   } else if (a.kind === 7) {
-    // Котик: стрімкий котячий стрибок + невразливість під час польоту
     a.shield = Math.max(a.shield, 0.35);
     const struck = new Set();
     for (let j = 0; j < 32; j++) {
       const x = a.x + 4.2 * Math.cos(a.heading), y = a.y + 4.2 * Math.sin(a.heading);
-      if (blocked(x, y, 14)) break;
+      if (blockedWall(x, y, 14)) break;
       a.x = x; a.y = y;
       if (j % 7 === 0) rings.push({ x, y, r: 16, t: .35, color: h.color });
       for (const b of opponents(a)) {
@@ -651,8 +728,16 @@ function cast(a) {
 }
 
 function objective(a) {
+  if (showdown()) {
+    const cubeLoot = closest(a, loot.filter(l => l.kind === 'cube'));
+    if (cubeLoot) return cubeLoot;
+    const boxTarget = closest(a, crates.filter(cr => cr.kind === 'box'));
+    if (boxTarget && dist(a, boxTarget) < 260) return boxTarget;
+    return closest(a, seenOpponents(a)) || { x: W / 2, y: H / 2 };
+  }
   if (profile.rule === 1) return flag.carrier === a ? a.base : (flag.carrier && visible(a, flag.carrier) ? flag.carrier : flag);
   if (profile.rule === 3) return closest(a, seenOpponents(a)) || closest(a, loot) || { x: 460, y: 270 };
+  if (profile.rule === 0 && countdownLeader && countdownLeader !== a && visible(a, countdownLeader)) return countdownLeader;
   if (!profile.difficulty) return closest(a, gems) || { x: 460, y: 270 };
   let best = null, min = Infinity;
   for (const gem of gems) {
@@ -667,10 +752,15 @@ function objective(a) {
 function tactic(a) {
   const tier = profile.difficulty, enemy = closest(a, seenOpponents(a));
   let target = objective(a);
+  if (showdown() && stormInset > 10) {
+    if (a.x < stormInset + 55 || a.x > W - stormInset - 55 || a.y < stormInset + 55 || a.y > H - stormInset - 55) {
+      return { x: W / 2, y: H / 2 };
+    }
+  }
   if (tier === 2) {
     const danger = meteors.find(m => m.owner !== a && dist(a, m) < m.r);
     if (danger) {
-      const safe = [{ x: a.x + 95, y: a.y }, { x: a.x - 95, y: a.y }, { x: a.x, y: a.y + 95 }, { x: a.x, y: a.y - 95 }].filter(p => !blocked(p.x, p.y, 16)).sort((u, v) => dist(v, danger) - dist(u, danger));
+      const safe = [{ x: a.x + 95, y: a.y }, { x: a.x - 95, y: a.y }, { x: a.x, y: a.y + 95 }, { x: a.x, y: a.y - 95 }].filter(p => !blockedWalk(p.x, p.y, 16)).sort((u, v) => dist(v, danger) - dist(u, danger));
       if (safe.length) return safe[0];
     }
     const leader = seenOpponents(a).find(b => b.score >= (profile.rule === 1 ? 2 : profile.rule === 3 ? 6 : 6));
@@ -679,7 +769,7 @@ function tactic(a) {
   if (tier && enemy && a.hp <= 2 && dist(a, enemy) < 210) {
     const heart = closest(a, loot.filter(p => p.kind === 'heart' || p.kind === 'supply'));
     if (heart) return heart;
-    const cover = blocks.flatMap(([x, y, w, h]) => [{ x: x - 24, y: y + h / 2 }, { x: x + w + 24, y: y + h / 2 }, { x: x + w / 2, y: y - 24 }, { x: x + w / 2, y: y + h + 24 }]).filter(p => !blocked(p.x, p.y, 16) && !visible(enemy, p));
+    const cover = blocks.flatMap(([x, y, w, h]) => [{ x: x - 24, y: y + h / 2 }, { x: x + w + 24, y: y + h / 2 }, { x: x + w / 2, y: y - 24 }, { x: x + w / 2, y: y + h + 24 }]).filter(p => !blockedWalk(p.x, p.y, 16) && !visible(enemy, p));
     return closest(a, cover) || target;
   }
   return target;
@@ -700,6 +790,9 @@ function bot(a, dt) {
         if (a.kind === 0 || a.kind === 7) a.heading = Math.atan2(b.y - a.y, b.x - a.x);
         cast(a);
       }
+    } else if (crates.length) {
+      const cr = closest(a, crates);
+      if (cr && dist(a, cr) < 190) fire(a);
     }
   }
 }
@@ -713,11 +806,11 @@ function update(dt) {
     loot.push({ x: supply.x, y: supply.y, kind: 'supply' });
     supply = { ...point(), wait: 20 };
   }
-  if (profile.rule !== 1 && profile.rule !== 3 && spawnIn <= 0 && gems.length < 8) {
+  if (profile.rule !== 1 && profile.rule !== 3 && !showdown() && spawnIn <= 0 && gems.length < 9) {
     gems.push(previewGem); previewGem = point(); spawnIn = 1.8;
   }
   if (lootIn <= 0) {
-    if (loot.length < 3) loot.push({ ...point(), kind: ['heart', 'spark', 'wind'][Math.floor(Math.random() * 3)] });
+    if (loot.length < 4) loot.push({ ...point(), kind: ['heart', 'spark', 'wind'][Math.floor(Math.random() * 3)] });
     lootIn = 5;
   }
   for (let i = temporaryBrush.length - 1; i >= 0; i--) {
@@ -729,14 +822,32 @@ function update(dt) {
   for (const ft of floatTexts) { ft.y -= 24 * dt; ft.t -= dt; }
   floatTexts = floatTexts.filter(ft => ft.t > 0);
 
+  // Отруйний туман у режимі «Зіткнення» (Showdown)
+  if (showdown()) {
+    stormInset = Math.min(185, stormInset + dt * 1.9);
+    stormTick += dt;
+    if (stormTick >= 1.0) {
+      stormTick = 0;
+      for (const u of units) {
+        if (u.dead || u.eliminated) continue;
+        if (u.x < stormInset || u.x > W - stormInset || u.y < stormInset || u.y > H - stormInset) {
+          hit(u, 1);
+          floatText(u.x, u.y, '☁ Туман -1', '#c78cff');
+        }
+      }
+    }
+  }
+
   for (const a of units) {
+    if (a.eliminated) continue;
     a.boost = Math.max(0, a.boost - dt);
-    a.cool = Math.max(0, a.cool - dt * 0.75); // Пасивний + активний заряд від влучань
+    a.cool = Math.max(0, a.cool - dt * 0.75);
     a.cd -= dt;
     a.shield -= dt;
     a.dome = Math.max(0, a.dome - dt);
     a.slow = Math.max(0, (a.slow || 0) - dt);
     a.reveal = Math.max(0, (a.reveal || 0) - dt);
+    a.padCool = Math.max(0, (a.padCool || 0) - dt);
 
     if (a.dead) {
       a.dead = Math.max(0, a.dead - dt);
@@ -746,7 +857,28 @@ function update(dt) {
     }
     if (a.zombie) { hunt(a, dt); continue; }
 
-    // Поповнення боєзапасу (3 заряди) та пасивне автолікування через 3 с поза боєм
+    // Пружини-трампліни (Jump Pads)
+    if (a.jumpTime > 0) {
+      a.jumpTime = Math.max(0, a.jumpTime - dt);
+      move(a, a.jumpVx, a.jumpVy, 420, dt);
+      if (a.jumpTime === 0) rings.push({ x: a.x, y: a.y, r: 28, t: .35, color: '#ffe169' });
+      continue;
+    }
+    if (a.padCool <= 0) {
+      const padHit = pads.find(([px, py]) => Math.hypot(a.x - px, a.y - py) < 22);
+      if (padHit) {
+        a.jumpTime = 0.46;
+        a.jumpVx = padHit[2];
+        a.jumpVy = padHit[3];
+        a.padCool = 1.6;
+        a.shield = Math.max(a.shield, 0.46);
+        if (!a.i) sfx('jump');
+        rings.push({ x: padHit[0], y: padHit[1], r: 30, t: .35, color: '#ffe169' });
+        floatText(a.x, a.y, 'Стрибок! 🚀', '#ffe169');
+        continue;
+      }
+    }
+
     a.ammo = Math.min(3, (a.ammo ?? 3) + dt * 0.85);
     a.outOfCombat = (a.outOfCombat || 0) + dt;
     if (a.outOfCombat >= 3.2 && a.hp < a.max) {
@@ -767,19 +899,55 @@ function update(dt) {
     if (profile.rule === 1) {
       if (!flag.carrier && dist(a, flag) < 22) { flag.carrier = a; if (!a.i) sfx('gem'); }
       if (flag.carrier === a && dist(a, a.base) < 29) { a.score++; a.picks++; if (!a.i) sfx('super'); flag = { x: 460, y: 270, carrier: null }; }
-    } else if (profile.rule === 0 || invasion()) collect(a);
+      if (a.score >= 3) { finish(); return; }
+    } else if (profile.rule === 3) {
+      if (a.score >= 8) { finish(); return; }
+    } else if (profile.rule === 0 || invasion()) {
+      collect(a);
+      if (invasion() && cleared()) { finish(); return; }
+    }
 
-    if (invasion() ? cleared() : a.score >= (profile.rule === 1 ? 3 : profile.rule === 3 ? 8 : 7)) { finish(); return; }
-
-    const j = loot.findIndex(p => dist(a, p) < 20);
+    const j = loot.findIndex(p => dist(a, p) < 22);
     if (j >= 0) {
       const item = loot.splice(j, 1)[0];
       if (!a.i) sfx('gem');
-      if (item.kind === 'supply') { a.boost = 4; a.hp = Math.min(a.max, a.hp + 2); a.cool = Math.max(0, a.cool - 3); floatText(a.x, a.y, '+2 ♥ ⚡', '#ffe889'); }
-      else if (item.kind === 'heart') { a.hp = Math.min(a.max, a.hp + 2); floatText(a.x, a.y, '+2 ♥', '#ff91a4'); }
-      else if (item.kind === 'wind') { a.boost = 4; floatText(a.x, a.y, 'Швидкість!', '#80f9ff'); }
-      else { a.cool = Math.max(0, a.cool - 3); floatText(a.x, a.y, 'Заряд ✦', '#d7c5ff'); }
-      rings.push({ x: a.x, y: a.y, t: .4, r: 26, color: item.kind === 'heart' ? '#ff91a4' : '#ffe889' });
+      if (item.kind === 'cube') {
+        a.cubes = (a.cubes || 0) + 1;
+        a.max += 1; a.hp = Math.min(a.max, a.hp + 1);
+        a.picks++;
+        floatText(a.x, a.y, '⚡ Куб сили +' + a.cubes, '#7affb2');
+      } else if (item.kind === 'supply') {
+        a.boost = 4; a.hp = Math.min(a.max, a.hp + 2); a.cool = Math.max(0, a.cool - 3); floatText(a.x, a.y, '+2 ♥ ⚡', '#ffe889');
+      } else if (item.kind === 'heart') {
+        a.hp = Math.min(a.max, a.hp + 2); floatText(a.x, a.y, '+2 ♥', '#ff91a4');
+      } else if (item.kind === 'wind') {
+        a.boost = 4; floatText(a.x, a.y, 'Швидкість!', '#80f9ff');
+      } else {
+        a.cool = Math.max(0, a.cool - 3); floatText(a.x, a.y, 'Заряд ✦', '#d7c5ff');
+      }
+      rings.push({ x: a.x, y: a.y, t: .4, r: 26, color: item.kind === 'cube' ? '#7affb2' : item.kind === 'heart' ? '#ff91a4' : '#ffe889' });
+    }
+  }
+
+  // Зворотний відлік 10 секунд у режимі «Кристали» (Gem Grab), як у Brawl Stars!
+  if (profile.rule === 0) {
+    const aliveUnits = units.filter(u => !u.zombie);
+    const maxGems = Math.max(...aliveUnits.map(u => u.score));
+    const leaders = aliveUnits.filter(u => u.score === maxGems && u.score >= 7);
+    if (leaders.length === 1) {
+      if (countdownLeader !== leaders[0]) {
+        countdownLeader = leaders[0];
+        gemCountdown = 10;
+        sfx('super');
+        floatText(countdownLeader.x, countdownLeader.y, 'Відлік 10 с!', '#ffe169');
+      } else {
+        gemCountdown -= dt;
+        if (gemCountdown <= 0) { finish(); return; }
+      }
+    } else {
+      if (countdownLeader) floatText(W / 2, H / 2, 'Відлік зупинено!', '#ff927e');
+      countdownLeader = null;
+      gemCountdown = 0;
     }
   }
 
@@ -787,6 +955,7 @@ function update(dt) {
     m.t -= dt;
     if (m.t <= 0) {
       opponents(m.owner).filter(b => dist(m, b) <= m.r).forEach(b => hit(b, m.power, m.owner));
+      crates.filter(cr => dist(m, cr) <= m.r).forEach(cr => damageCrate(cr, m.power, m.owner));
       rings.push({ ...m, color: '#ffd2ff', t: .4 });
     }
   }
@@ -796,8 +965,17 @@ function update(dt) {
     s.t -= dt;
     s.x += s.dx * (s.speed || 360) * dt;
     s.y += s.dy * (s.speed || 360) * dt;
-    if (blocked(s.x, s.y, 4)) s.t = 0;
+    if (blockedWall(s.x, s.y, 4)) s.t = 0;
     if (s.t <= 0) continue;
+
+    // Влучання по ящиках / бочках
+    const crHit = crates.find(cr => Math.hypot(s.x - cr.x, s.y - cr.y) < 18);
+    if (crHit) {
+      damageCrate(crHit, s.damage || 1, s.owner);
+      s.t = 0;
+      continue;
+    }
+
     const hitRadius = (s.radius || 5) + 12;
     const b = opponents(s.owner).find(b => dist(s, b) < (b.dome ? 36 : hitRadius));
     if (b) {
@@ -819,16 +997,28 @@ function update(dt) {
 
 function hud() {
   const a = units[0];
-  $('time').textContent = Math.ceil(left) + ' с';
-  $('score').textContent = invasion() ? tally() : (profile.rule === 1 ? '⚑ ' : profile.rule === 3 ? '⚔ ' : '◆ ') + a.score + '/' + (profile.rule === 1 ? 3 : profile.rule === 3 ? 8 : 7) + ' · Суперники ' + units.slice(1).map(b => b.score).join(' / ');
-  $('streak').textContent = profile.rule === 3 && combo > 1 ? '⚡ Серія ×' + combo : '';
-  $('streak').hidden = !(profile.rule === 3 && combo > 1);
+  $('time').textContent = (profile.rule === 0 && countdownLeader) ? ('⏳ ' + Math.ceil(gemCountdown) + ' с!') : (Math.ceil(left) + ' с');
+  if (invasion()) {
+    $('score').textContent = tally();
+  } else if (showdown()) {
+    const aliveCount = units.filter(u => !u.eliminated && !u.dead).length;
+    $('score').textContent = '☣ Бійців: ' + aliveCount + '/' + units.length + ' · ⚡ Куби: ' + (a.cubes || 0);
+  } else {
+    const bestBot = Math.max(0, ...units.slice(1).map(b => b.score));
+    const goal = profile.rule === 1 ? 3 : profile.rule === 3 ? 8 : 7;
+    const icon = profile.rule === 1 ? '⚑ ' : profile.rule === 3 ? '⚔ ' : '◆ ';
+    $('score').textContent = icon + 'Ти ' + a.score + '/' + goal + ' · Лідер ботів: ' + bestBot;
+  }
+  $('streak').textContent = (profile.rule === 0 && countdownLeader)
+    ? (countdownLeader === a ? '🔥 Утримай кристали!' : '⚠️ Зупини лідера!')
+    : (profile.rule === 3 && combo > 1 ? '⚡ Серія ×' + combo : '');
+  $('streak').hidden = !((profile.rule === 0 && countdownLeader) || (profile.rule === 3 && combo > 1));
   const covered = brushAt(a).length > 0;
   $('stealth').hidden = !covered;
   $('stealth').textContent = a.reveal > 0 ? '👀 Позицію видано' : '🌿 У кущах';
   $('stealth').dataset.revealed = String(a.reveal > 0);
   $('super').textContent = heroes[a.kind].ability + (a.cool > 0.05 ? ' · ' + Math.ceil(a.cool) + ' с' : ' ✦');
-  $('super').disabled = Boolean(a.cool > 0.05 || a.dead);
+  $('super').disabled = Boolean(a.cool > 0.05 || a.dead || a.eliminated);
 }
 
 function draw() {
@@ -840,11 +1030,14 @@ function draw() {
   const camX = Math.max(0, Math.min(W - vw, a.x - vw / 2)), camY = Math.max(0, Math.min(H - vh, a.y - vh / 2));
   ctx.setTransform(s * ratio, 0, 0, s * ratio, -camX * s * ratio, -camY * s * ratio);
   ctx.drawImage(background, 0, 0);
+  drawJumpPads(ctx, pads, left);
   drawBrush(ctx, brush, 0, profile.map);
   drawBrush(ctx, temporaryBrush, 0, 5);
 
+  for (const cr of crates) drawCrate(ctx, cr);
+
   for (const b of units) {
-    if (b.zombie) continue;
+    if (b.zombie || showdown()) continue;
     const p = b.base;
     oval(ctx, p.x, p.y, 28, 14, b.i ? '#944e623d' : '#33968960');
     banner(ctx, p.x - 16, p.y - 2, b.i ? (profile.banner + b.i) % 3 : profile.banner, .63);
@@ -872,6 +1065,11 @@ function draw() {
       star(ctx, p.x, p.y + 1, 6, '#fff3af');
       continue;
     }
+    if (p.kind === 'cube') {
+      box(ctx, p.x - 10, p.y - 10, 20, 20, 5, '#19a86b', '#d9ffea');
+      box(ctx, p.x - 6, p.y - 6, 12, 12, 3, '#6effb8');
+      continue;
+    }
     oval(ctx, p.x, p.y, 12, 12, p.kind === 'heart' ? '#b64b69' : p.kind === 'wind' ? '#197f94' : '#977827');
     ctx.fillStyle = '#fff2c3'; ctx.font = 'bold 16px system-ui'; ctx.textAlign = 'center';
     ctx.fillText(p.kind === 'heart' ? '♥' : p.kind === 'wind' ? '»' : 'ϟ', p.x, p.y + 5);
@@ -882,19 +1080,18 @@ function draw() {
   }
 
   for (const b of units) {
-    if (b.dead || (b !== a && hiddenByBrush(a, b))) continue;
+    if (b.dead || b.eliminated || (b !== a && hiddenByBrush(a, b))) continue;
+    const jumpScale = b.jumpTime > 0 ? 1.18 : .85;
     if (b.boost) oval(ctx, b.x, b.y + 12, 21, 6, '#80f9ff');
     if (b.slow > 0) oval(ctx, b.x, b.y + 16, 23, 5, '#b1edff');
     if (b.zombie) {
       if (b.windup > 0) oval(ctx, b.x, b.y, 26, 14, '#ff714963');
       zombieSprite(ctx, b);
     } else {
-      sprite(ctx, b.kind, b.x, b.y, .85, b.i ? 0 : profile.roster[b.kind].wear, Math.cos(b.heading) < 0);
+      sprite(ctx, b.kind, b.x, b.y - (b.jumpTime > 0 ? 12 : 0), jumpScale, b.i ? 0 : profile.roster[b.kind].wear, Math.cos(b.heading) < 0);
     }
-    // Смужка HP
     box(ctx, b.x - 16, b.y - 31, 32, 5, 2, '#263647');
     box(ctx, b.x - 15, b.y - 30, Math.max(0, 30 * b.hp / b.max), 3, 1, b.i ? '#ff927e' : '#73fde1');
-    // 3 поділки боєзапасу (Ammo bar як у Brawl Stars) для гравця
     if (!b.i) {
       for (let slot = 0; slot < 3; slot++) {
         const fill = Math.max(0, Math.min(1, (b.ammo ?? 3) - slot));
@@ -902,6 +1099,10 @@ function draw() {
         if (fill > 0) box(ctx, b.x - 15 + slot * 10.5, b.y - 24, 9 * fill, 2.5, 1, fill === 1 ? '#ffb84d' : '#ffe299');
       }
       poly(ctx, [[b.x - 5, b.y - 40], [b.x + 5, b.y - 40], [b.x, b.y - 35]], '#fffacc', '#26404e');
+    }
+    if (b.cubes > 0) {
+      ctx.fillStyle = '#7affb2'; ctx.font = '900 10px "SupercellHeadline", "SupercellText", system-ui'; ctx.textAlign = 'left';
+      ctx.fillText('⚡' + b.cubes, b.x + 18, b.y - 26);
     }
     if (b.dome || b.shield > 0) {
       const r = b.dome ? 36 : 25;
@@ -912,6 +1113,18 @@ function draw() {
 
   drawBrush(ctx, brush, 1, profile.map, brushAt(a));
   drawBrush(ctx, temporaryBrush, 1, 5, brushAt(a));
+
+  // Отруйний туман по краях у режимі Зіткнення
+  if (showdown() && stormInset > 1) {
+    ctx.fillStyle = '#6f2da866';
+    ctx.fillRect(0, 0, W, stormInset);
+    ctx.fillRect(0, H - stormInset, W, stormInset);
+    ctx.fillRect(0, stormInset, stormInset, H - stormInset * 2);
+    ctx.fillRect(W - stormInset, stormInset, stormInset, H - stormInset * 2);
+    ctx.strokeStyle = '#bc7aff'; ctx.lineWidth = 3;
+    ctx.strokeRect(stormInset, stormInset, W - stormInset * 2, H - stormInset * 2);
+  }
+
   if (brushAt(a).length) {
     ctx.strokeStyle = '#efff9c'; ctx.lineWidth = 2; ctx.setLineDash([4, 5]);
     ctx.beginPath(); ctx.arc(a.x, a.y + 7, 25, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
@@ -936,10 +1149,9 @@ function draw() {
     ctx.strokeStyle = r.color; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(r.x, r.y, Math.max(.1, r.r * (1 - r.t / .4)), 0, Math.PI * 2); ctx.stroke();
   }
-  // Спливаючі цифри шкоди та лікування
   for (const ft of floatTexts) {
     ctx.save();
-    ctx.font = '900 13px "SupercellText", system-ui';
+    ctx.font = '900 13px "SupercellHeadline", "SupercellText", system-ui';
     ctx.textAlign = 'center';
     ctx.globalAlpha = Math.min(1, ft.t * 2);
     ctx.strokeStyle = '#101b2d'; ctx.lineWidth = 3;
@@ -948,8 +1160,8 @@ function draw() {
     ctx.fillText(ft.text, ft.x, ft.y);
     ctx.restore();
   }
-  if (a.dead) {
-    ctx.fillStyle = '#193443'; ctx.font = 'bold 20px "SupercellText", system-ui'; ctx.textAlign = 'center';
+  if (a.dead && !a.eliminated) {
+    ctx.fillStyle = '#193443'; ctx.font = 'bold 20px "SupercellHeadline", "SupercellText", system-ui'; ctx.textAlign = 'center';
     ctx.fillText('Повернення за ' + Math.ceil(a.dead) + ' с', camX + vw / 2, camY + vh / 2);
   }
 }
@@ -996,24 +1208,90 @@ $('help').textContent = matchMedia('(pointer:coarse)').matches
   ? 'Джойстик — рух · Утримуй «Вогонь» для автоатаки та перевірки кущів'
   : 'WASD або стрілки — рух · Пробіл — атака · E — здібність';
 
+// --- ЗБЕРЕЖЕННЯ ПРОГРЕСУ (КОД, ФАЙЛ .JSON, QR/ПОСИЛАННЯ) ---
 $('exportProgress').onclick = () => {
-  $('backupText').value = JSON.stringify(profile);
+  const json = JSON.stringify(profile);
+  $('backupText').value = json;
   $('backupText').select();
-  $('backupStatus').textContent = 'Код готовий. Скопіюй і збережи його.';
+  if (navigator.clipboard) navigator.clipboard.writeText(json).catch(() => {});
+  $('backupStatus').textContent = 'Код скопійовано в буфер обміну!';
 };
+
+if ($('downloadSave')) {
+  $('downloadSave').onclick = () => {
+    const blob = new Blob([JSON.stringify(profile, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'iskra-arena-save.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    $('backupStatus').textContent = 'Файл збереження завантажено!';
+  };
+}
+
+if ($('uploadSaveBtn') && $('uploadSaveInput')) {
+  $('uploadSaveBtn').onclick = () => $('uploadSaveInput').click();
+  $('uploadSaveInput').onchange = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      $('backupText').value = String(reader.result || '');
+      $('importProgress').click();
+    };
+    reader.readAsText(file);
+  };
+}
+
+if ($('shareSaveLink')) {
+  $('shareSaveLink').onclick = async () => {
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(profile))));
+    const url = location.origin + location.pathname + '?save=' + encoded;
+    $('backupText').value = url;
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Іскра Арена — Моє збереження', url }); return; } catch {}
+    }
+    if (navigator.clipboard) await navigator.clipboard.writeText(url).catch(() => {});
+    $('backupStatus').textContent = 'Посилання зі збереженням скопійовано! Відкрий його на іншому пристрої.';
+  };
+}
+
 $('importProgress').onclick = () => {
-  const raw = $('backupText').value.trim();
-  if (!raw || raw.length > 100000) { $('backupStatus').textContent = 'Встав код збереження (до 100 000 символів).'; return; }
+  let raw = $('backupText').value.trim();
+  if (!raw || raw.length > 100000) { $('backupStatus').textContent = 'Встав код або посилання збереження.'; return; }
   try {
+    if (raw.includes('?save=')) {
+      const param = new URL(raw).searchParams.get('save');
+      if (param) raw = decodeURIComponent(escape(atob(param)));
+    }
     const parsed = JSON.parse(raw);
     if (!parsed || !Array.isArray(parsed.roster) || !Number.isInteger(parsed.cups)) throw Error('format');
-    if (!confirm('Замінити прогрес у цій грі на імпортований?')) return;
-    localStorage.setItem(profileKey, raw);
+    if (!confirm('Замінити поточний прогрес на імпортований?')) return;
+    localStorage.setItem(profileKey, JSON.stringify(parsed));
+    location.search = '';
     location.reload();
   } catch {
-    $('backupStatus').textContent = 'Помилка формату. Потрібен код профілю Іскра Арени.';
+    $('backupStatus').textContent = 'Помилка формату. Потрібен код або файл Іскра Арени.';
   }
 };
+
+// Автоматичне підхоплення збереження з URL (?save=...)
+try {
+  const urlSave = new URLSearchParams(location.search).get('save');
+  if (urlSave) {
+    const decoded = decodeURIComponent(escape(atob(urlSave)));
+    const parsed = JSON.parse(decoded);
+    if (parsed && Array.isArray(parsed.roster) && Number.isInteger(parsed.cups)) {
+      if (confirm('Знайдено прогрес у посиланні (' + parsed.cups + ' 🏆). Завантажити його?')) {
+        localStorage.setItem(profileKey, JSON.stringify(parsed));
+        history.replaceState(null, '', location.pathname);
+        location.reload();
+      } else {
+        history.replaceState(null, '', location.pathname);
+      }
+    }
+  }
+} catch {}
 
 if ($('resetCache')) {
   $('resetCache').onclick = async () => {
@@ -1041,7 +1319,6 @@ if ($('soundToggle')) {
   };
 }
 
-// Надійна прив’язка кнопок вкладок для мобільного Safari / iOS PWA
 document.querySelectorAll('.tab-btn').forEach(b => {
   b.addEventListener('click', () => { sfx('tap'); setTab(b.dataset.tab); });
 });

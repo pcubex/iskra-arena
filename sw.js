@@ -1,6 +1,6 @@
 'use strict';
 const CACHE_PREFIX = 'iskra-arena-';
-const VERSION = 'iskra-arena-pandi-v2.4';
+const VERSION = 'iskra-arena-pandi-v2.5';
 const APP_ROOT = new URL('./', self.registration.scope);
 const FILES = [
   './',
@@ -9,6 +9,7 @@ const FILES = [
   './data.js',
   './art.js',
   './game.js',
+  './SupercellHeadline-Heavy.ttf',
   './SupercellText_Bd.ttf',
   './icon.svg',
   './icon-192.png',
@@ -39,7 +40,6 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== APP_ROOT.origin || !url.href.startsWith(APP_ROOT.href)) return;
 
-  // Network-first with ignoreSearch fallback so HTML/CSS/JS are always synchronized
   event.respondWith(
     fetch(request).then(resp => {
       if (resp.ok) {
