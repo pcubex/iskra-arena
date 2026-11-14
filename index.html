@@ -4,22 +4,31 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#182840">
-  <meta name="description" content="Іскра Арена — яскрава українська PWA-гра. Вісім героїв, зарості для засідок, Панді та чотири режими бою.">
+  <meta name="description" content="Іскра Арена — яскрава українська PWA-гра. Вісім героїв, зарості для засідок, Панді, Котик та чотири режими бою.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Іскра Арена">
   <title>Іскра Арена · Сезон Панді</title>
-  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="manifest" href="./manifest.webmanifest?v=2.4">
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="apple-touch-icon" href="./icon-192.png">
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./style.css?v=2.4">
 </head>
 <body>
 <main>
   <header class="topbar">
-    <div class="identity"><span class="mark" aria-hidden="true">✦</span><div><strong>ІСКРА <em>АРЕНА</em></strong><small>Кишенькові пригоди • Сезон Панді</small></div></div>
-    <span id="career" class="career"></span>
+    <div class="identity">
+      <span class="mark" aria-hidden="true">✦</span>
+      <div>
+        <strong>ІСКРА <em>АРЕНА</em></strong>
+        <small>Кишенькові пригоди • Сезон Панді</small>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button type="button" id="soundToggle" class="icon-btn" aria-label="Увімкнути або вимкнути звук">🔊</button>
+      <span id="career" class="career"></span>
+    </div>
   </header>
 
   <section id="lobby" data-tab="play">
@@ -29,7 +38,7 @@
         <div class="season-banner">
           <span>🌿 НОВИЙ СЕЗОН</span>
           <strong>Бамбукові секрети</strong>
-          <p>Сховайся в кущах, підкрадися до суперників і зіграй за добродушного Панді!</p>
+          <p>Сховайся в кущах, підкрадися до суперників і зіграй за Панді або пухнастого Котика!</p>
         </div>
         <div class="play-grid">
           <section class="hero-sheet" aria-labelledby="heroName">
@@ -40,8 +49,12 @@
               <p id="desc"></p>
             </div>
             <canvas id="portrait" width="420" height="380" aria-hidden="true"></canvas>
-            <div class="mastery"><small id="level"></small><div class="xp"><i id="bar"></i></div></div>
+            <div class="mastery">
+              <small id="level"></small>
+              <div class="xp"><i id="bar"></i></div>
+            </div>
           </section>
+
           <section class="launch">
             <div class="section-eyebrow">⚔️ ШВИДКИЙ МАТЧ</div>
             <h2>Час на арену!</h2>
@@ -54,7 +67,7 @@
               <button type="button" class="pill-btn" data-goto="maps">🗺️ <span id="activeMapLabel">Арена</span></button>
               <button type="button" class="pill-btn" data-goto="heroes">✨ Змінити бійця</button>
             </div>
-            <button class="primary" id="start">У БІЙ! <span aria-hidden="true">➜</span></button>
+            <button type="button" class="primary" id="start">У БІЙ! <span aria-hidden="true">➜</span></button>
           </section>
         </div>
       </div>
@@ -82,9 +95,9 @@
               <div class="section-eyebrow">🏆 МАЙСТЕРНЯ ГЕРОЯ</div>
               <p class="small-note">Кубки за перемогу: 4 / 7 / 10 залежно від складності. Купуй посилення улюбленому герою.</p>
               <div class="upgrades">
-                <button id="training"></button>
-                <button id="forge"></button>
-                <button id="power"></button>
+                <button type="button" id="training"></button>
+                <button type="button" id="forge"></button>
+                <button type="button" id="power"></button>
               </div>
             </section>
           </div>
@@ -100,7 +113,7 @@
           <p id="mapInfo"></p>
           <div class="brush-tip">
             <strong>🌿 Таємниця заростей</strong>
-            <span>Зайди у кущі — вороги здалеку тебе не помітять. Але будь уважний: постріли видають схованку!</span>
+            <span>Зайди у кущі — вороги здалеку тебе не помітять. Стріляй у підозрілі кущі, щоб перевірити засідку!</span>
           </div>
         </section>
       </div>
@@ -109,22 +122,24 @@
       <div class="tab-panel" data-panel="profile" hidden>
         <div class="panel-grid">
           <section class="card-box">
-            <div class="section-eyebrow">🎮 КЕРУВАННЯ ТА ПОРАДИ</div>
-            <h2>Як грати</h2>
+            <div class="section-eyebrow">🎮 МЕХАНІКИ BRAWL STARS</div>
+            <h2>Як перемагати</h2>
             <ul class="tips-list">
-              <li><b>На телефоні:</b> лівий джойстик — рух, кнопка «Вогонь» — автоатака найближчого ворога, фіолетова кнопка — суператака.</li>
-              <li><b>На комп’ютері:</b> WASD або стрілки — рух, Пробіл — постріл, E — суператака, Esc — пауза.</li>
-              <li><b>Зарості:</b> ховайся в зелених кущах для засідок, але пам’ятай — постріл тимчасово розкриває позицію.</li>
+              <li><b>Боєзапас (3 заряди):</b> під смужкою здоров’я є 3 помаранчеві поділки. Кожен постріл витрачає 1 заряд, який швидко відновлюється.</li>
+              <li><b>Суперудар від влучань:</b> фіолетова кнопка Суперуміння заряджається швидше, коли ти влучаєш по суперниках!</li>
+              <li><b>Автолікування:</b> якщо 3 секунди не стріляти й не отримувати шкоди, герой починає автоматично відновлювати здоров’я.</li>
+              <li><b>Перевірка кущів:</b> кнопка «Вогонь» стріляє у напрямку руху, навіть коли поруч не видно ворога — перевіряй кущі!</li>
             </ul>
           </section>
           <section class="card-box backup">
             <div class="section-eyebrow">💾 ПЕРЕНЕСЕННЯ ЗБЕРЕЖЕНЬ</div>
-            <h2>Резервна копія</h2>
-            <p>При переході з іншого сайту прогрес не переноситься автоматично. Скопіюй код прогресу й встав сюди.</p>
-            <textarea id="backupText" rows="4" spellcheck="false" placeholder="Код збереження з іншого сайту…" aria-label="Код збереження"></textarea>
+            <h2>Резервна копія та оновлення</h2>
+            <p>Скопіюй код прогресу для збереження або натисни «Оновити кеш гри», якщо на телефоні застрягла стара версія.</p>
+            <textarea id="backupText" rows="3" spellcheck="false" placeholder="Код збереження з іншого сайту…" aria-label="Код збереження"></textarea>
             <div class="backup-actions">
-              <button id="exportProgress">Показати код</button>
-              <button id="importProgress">Відновити з коду</button>
+              <button type="button" id="exportProgress">Показати код</button>
+              <button type="button" id="importProgress">Відновити з коду</button>
+              <button type="button" id="resetCache">🔄 Оновити кеш гри</button>
             </div>
             <small id="backupStatus" role="status"></small>
           </section>
@@ -143,16 +158,52 @@
   <section id="battle" hidden>
     <div id="field">
       <canvas id="world" aria-label="Ігрова арена"></canvas>
-      <div id="hud"><b id="score"></b><b id="stealth" hidden>🌿 Укриття</b><b id="streak" hidden></b><b id="time"></b><button id="pause" aria-label="Пауза">Ⅱ</button></div>
-      <div id="modal" hidden><article><canvas width="80" height="55" id="victoryFlag" hidden aria-label="Прапор переможця"></canvas><small id="overline"></small><h2 id="title"></h2><p id="summary"></p><button id="equip" hidden>Одягнути</button><button class="primary" id="next"></button><button id="leave" hidden>У меню</button></article></div>
+      <div id="hud">
+        <b id="score"></b>
+        <b id="stealth" hidden>🌿 Укриття</b>
+        <b id="streak" hidden></b>
+        <b id="time"></b>
+        <button type="button" id="pause" aria-label="Пауза">Ⅱ</button>
+      </div>
+      <div id="modal" hidden>
+        <article>
+          <canvas width="80" height="55" id="victoryFlag" hidden aria-label="Прапор переможця"></canvas>
+          <small id="overline"></small>
+          <h2 id="title"></h2>
+          <p id="summary"></p>
+          <button type="button" id="equip" hidden>Одягнути</button>
+          <button type="button" class="primary" id="next"></button>
+          <button type="button" id="leave" hidden>У меню</button>
+        </article>
+      </div>
     </div>
-    <div id="controls"><div id="stick" role="group" aria-label="Віртуальний джойстик руху"><i></i></div><button id="super" aria-label="Використати особливу здібність"></button><button id="fire" aria-label="Атакувати">ВОГОНЬ</button></div>
+    <div id="controls">
+      <div id="stick" role="group" aria-label="Віртуальний джойстик руху"><i></i></div>
+      <button type="button" id="super" aria-label="Використати особливу здібність"></button>
+      <button type="button" id="fire" aria-label="Атакувати">ВОГОНЬ</button>
+    </div>
     <footer id="help"></footer>
   </section>
 
   <p id="storageMsg" hidden>Збереження в цьому браузері недоступне. Прогрес діє до закриття гри.</p>
 </main>
-<script src="./data.js"></script><script src="./art.js"></script><script src="./game.js"></script>
-<script>if('serviceWorker' in navigator && location.protocol.startsWith('http')){addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(err=>console.info('Офлайн-режим недоступний:',err)))}</script>
+<script src="./data.js?v=2.4"></script>
+<script src="./art.js?v=2.4"></script>
+<script src="./game.js?v=2.4"></script>
+<script>
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js?v=2.4', { scope: './', updateViaCache: 'none' }).then(reg => {
+      reg.update();
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if (nw) nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) location.reload();
+        });
+      });
+    }).catch(err => console.info('Офлайн-режим недоступний:', err));
+  });
+}
+</script>
 </body>
 </html>
