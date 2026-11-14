@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#182840">
+  <meta name="description" content="Іскра Арена — яскрава українська PWA-гра. Сім героїв, зарості для засідок, Панді та чотири режими бою.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Іскра Арена">
+  <title>Іскра Арена · Сезон Панді</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="./icon.svg">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<main>
+  <header class="topbar">
+    <div class="identity"><span class="mark" aria-hidden="true">✦</span><div><strong>ІСКРА <em>АРЕНА</em></strong><small>Кишенькові пригоди • Сезон Панді</small></div></div>
+    <span id="career" class="career"></span>
+  </header>
+  <section id="lobby">
+    <div class="season-banner"><span>🌿 НОВИЙ СЕЗОН</span><strong>Бамбукові секрети</strong><p>Сховайся в кущах, підкрадися до суперників і зіграй за добродушного Панді!</p></div>
+    <div class="hangar">
+      <section class="hero-sheet" aria-labelledby="heroName">
+        <div class="hero-copy"><small id="role"></small><h1 id="heroName"></h1><strong id="skillName"></strong><p id="desc"></p></div>
+        <canvas id="portrait" width="420" height="380" aria-hidden="true"></canvas>
+        <div class="mastery"><small id="level"></small><div class="xp"><i id="bar"></i></div></div>
+      </section>
+      <section class="launch"><div class="section-eyebrow">⚔️ ШВИДКИЙ МАТЧ</div><h2>Час на арену!</h2><label>Режим гри<select id="rule"></select></label><label>Складність<select id="difficulty"></select></label><p id="mission"></p><button class="primary" id="start">У БІЙ! <span aria-hidden="true">➜</span></button></section>
+      <section class="roster"><div class="section-eyebrow">✨ ОБЕРИ СВОЮ СИЛУ</div><h2>Герої <small>7 унікальних бійців</small></h2><div id="heroes"></div>
+        <details><summary>🎽 Образи та спорядження</summary><div class="settings"><label>Одяг<select id="wear"></select></label><label>Амулет<select id="charm"></select></label><label>Мій прапор<select id="banner"></select></label></div><p id="itemInfo"></p><p id="heroStats" class="statline"></p></details>
+        <details><summary>🏆 Майстерня героя</summary><p>Кубки за перемогу: 4 / 7 / 10 залежно від складності. Купуй посилення улюбленому герою.</p><div class="upgrades"><button id="training"></button><button id="forge"></button><button id="power"></button></div></details>
+      </section>
+      <section class="arenas"><div class="section-eyebrow">🗺️ ДОСЛІДЖУЙ СВІТИ</div><h2>Арени <small>6 різних локацій</small></h2><div id="maps"></div><p id="mapInfo"></p>
+        <div class="brush-tip"><strong>🌿 Таємниця заростей</strong><span>Зайди у кущі — вороги здалеку тебе не помітять. Але будь уважний: постріли видають схованку!</span></div>
+        <details class="backup"><summary>💾 Перенесення збережень</summary><p>При переході з Netlify на GitHub Pages прогрес не переноситься автоматично. Скопіюй код прогресу зі старої адреси й встав сюди.</p><textarea id="backupText" rows="3" spellcheck="false" placeholder="Код збереження з іншого сайту…" aria-label="Код збереження"></textarea><div class="backup-actions"><button id="exportProgress">Показати код</button><button id="importProgress">Відновити з коду</button></div><small id="backupStatus" role="status"></small></details>
+      </section>
+    </div>
+  </section>
+  <section id="battle" hidden>
+    <div id="field"><canvas id="world" aria-label="Ігрова арена"></canvas>
+      <div id="hud"><b id="score"></b><b id="stealth" hidden>🌿 Укриття</b><b id="streak" hidden></b><b id="time"></b><button id="pause" aria-label="Пауза">Ⅱ</button></div>
+      <div id="modal" hidden><article><canvas width="80" height="55" id="victoryFlag" hidden aria-label="Прапор переможця"></canvas><small id="overline"></small><h2 id="title"></h2><p id="summary"></p><button id="equip" hidden>Одягнути</button><button class="primary" id="next"></button><button id="leave" hidden>У меню</button></article></div>
+    </div>
+    <div id="controls"><div id="stick" role="group" aria-label="Віртуальний джойстик руху"><i></i></div><button id="super" aria-label="Використати особливу здібність"></button><button id="fire" aria-label="Атакувати">ВОГОНЬ</button></div>
+    <footer id="help"></footer>
+  </section>
+  <p id="storageMsg" hidden>Збереження в цьому браузері недоступне. Прогрес діє до закриття гри.</p>
+</main>
+<script src="./data.js"></script><script src="./art.js"></script><script src="./game.js"></script>
+<script>if('serviceWorker' in navigator && location.protocol.startsWith('http')){addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(err=>console.info('Офлайн-режим недоступний:',err)))}</script>
+</body>
+</html>
