@@ -1,6 +1,6 @@
 'use strict';
 const CACHE_PREFIX='iskra-arena-';
-const VERSION='iskra-arena-pandi-v4';
+const VERSION='iskra-arena-pandi-v6';
 const APP_ROOT=new URL('./',self.registration.scope);
 const FILES=['./','./index.html','./style.css','./data.js','./art.js','./game.js','./icon.svg','./icon-192.png','./icon-512.png','./manifest.webmanifest'];
 const resources=FILES.map(p=>new URL(p,APP_ROOT).href);

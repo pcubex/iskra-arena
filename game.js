@@ -84,6 +84,7 @@ function lobby(){
  portrait.clearRect(0,0,420,380);
  sprite(portrait,k,223,209,6.7,r.wear);
  $('mapInfo').textContent=m.hint+' 🌿 У заростях тебе не бачать здалеку; стрільба тимчасово видає позицію.';
+ if($('activeMapLabel'))$('activeMapLabel').textContent=m.name;
  $('maps').replaceChildren(...maps.map((map,i)=>{
    const button=document.createElement('button'), art=document.createElement('canvas');
    const name=document.createElement('strong'), note=document.createElement('small');
@@ -119,7 +120,7 @@ $('start').onclick=start;
 function modal(title,message,next){$('controls').hidden=true;$('victoryFlag').hidden=true;$('title').textContent=title;$('summary').textContent=message;$('next').textContent=next;$('modal').hidden=false;$('leave').hidden=state!=='pause';$('equip').hidden=true}
 function pause(){if(state!=='play')return;state='pause';clearInput();$('overline').textContent=maps[profile.map].name;modal('Пауза','Бій чекає на тебе.','Продовжити')}
 $('pause').onclick=pause;$('leave').onclick=lobby;$('next').onclick=()=>{if(state==='pause'){state='play';$('controls').hidden=false;$('modal').hidden=true}else lobby()};
-window.addEventListener('resize',()=>{if(state==='play'||state==='pause')draw()});window.addEventListener('blur',pause);document.addEventListener('visibilitychange',()=>{if(document.hidden)pause()});
+window.addEventListener('resize',()=>{if(state==='play'||state==='pause')draw()});window.addEventListener('orientationchange',()=>{setTimeout(()=>{if(state==='play'||state==='pause')draw()},120)});window.addEventListener('blur',pause);document.addEventListener('visibilitychange',()=>{if(document.hidden)pause()});
 function finish(){
  if(state!=='play')return;state='result';clearInput();const a=units[0],best=Math.max(...units.filter(b=>!b.zombie).map(b=>b.score)),win=invasion()?cleared():a.score===best&&units.filter(b=>b.score===best).length===1;
  const r=profile.roster[a.kind],prev=levelOf(r.xp),xp=12+Math.min(14,a.picks*2)+(win?8:0);const reward=win?cupRewards[profile.difficulty]:0;profile.cups+=reward;r.xp+=xp;r.played++;profile.matches++;save();
@@ -151,10 +152,10 @@ function closest(a,list){return list.reduce((prev,v)=>!prev||dist(a,v)<dist(a,pr
 function opponents(a){return units.filter(b=>b!==a&&!b.dead)}
 function fire(a){if(a.cd>0||a.dead)return;const targets=seenOpponents(a).filter(b=>dist(a,b)<=418);const enemy=a.i&&profile.rule===1&&profile.difficulty&&targets.includes(flag.carrier)?flag.carrier:closest(a,targets);if(!enemy||dist(a,enemy)>418)return;
  const error=a.i?[.26,.095,.035][profile.difficulty]*(Math.random()*2-1):0;a.angle=Math.atan2(enemy.y-a.y,enemy.x-a.x)+error;
- const count=a.kind===3?3:a.kind===6?2:1;
+ const count=a.kind===3?3:(a.kind===6||a.kind===7)?2:1;
  for(let n=0;n<count;n++){
   const angle=a.angle+(n-(count-1)/2)*(a.kind===6?.22:.17);
-  shots.push({x:a.x,y:a.y,owner:a,dx:Math.cos(angle),dy:Math.sin(angle),t:1.16,damage:a.kind===4?2:a.kind===6?.75:1,speed:a.kind===6?420:360,slow:a.kind===3?1.3:0,color:heroes[a.kind].color});
+  shots.push({x:a.x,y:a.y,owner:a,dx:Math.cos(angle),dy:Math.sin(angle),t:1.16,damage:a.kind===4?2:a.kind===6?.75:a.kind===7?.85:1,speed:a.kind===6?420:a.kind===7?400:360,slow:a.kind===3?1.3:0,color:heroes[a.kind].color});
  }
  a.reveal=a.kind===6?.95:1.35;sparkle(a.x+Math.cos(a.angle)*20,a.y+Math.sin(a.angle)*20,heroes[a.kind].color,3,25);
  a.cd=a.i?[1.28,.9,.72][profile.difficulty]:heroes[a.kind].rate}
@@ -172,6 +173,7 @@ function cast(a){
  else if(a.kind===4){for(const b of opponents(a)){if(dist(a,b)<122)hit(b,3,a)}rings.push({x:a.x,y:a.y,r:122,t:.4,color:h.color});if(charmed)a.cd=0}
  else if(a.kind===5){a.hp=Math.min(a.max,a.hp+3);for(const b of opponents(a)){if(dist(a,b)<108)hit(b,2,a)}if(charmed)a.dome=1.5;rings.push({x:a.x,y:a.y,r:108,t:.4,color:h.color})}
  else if(a.kind===6){const w=168,hg=124;temporaryBrush.push([Math.max(14,Math.min(W-w-14,a.x-w/2)),Math.max(14,Math.min(H-hg-14,a.y-hg/2)),w,hg,9]);a.hp=Math.min(a.max,a.hp+(charmed?3:2));if(charmed)a.dome=1.15;rings.push({x:a.x,y:a.y,r:86,t:.4,color:'#acffb1'});sparkle(a.x,a.y,'#d5ff9f',26,115)}
+ else if(a.kind===7){const struck=new Set();for(let j=0;j<32;j++){const x=a.x+4.2*Math.cos(a.heading),y=a.y+4.2*Math.sin(a.heading);if(blocked(x,y,14))break;a.x=x;a.y=y;if(j%7===0)rings.push({x,y,r:16,t:.35,color:h.color});for(const b of opponents(a)){if(!struck.has(b)&&dist(a,b)<34){hit(b,2,a);struck.add(b)}}}sparkle(a.x,a.y,'#ffb8d5',18,95);if(charmed){a.boost=Math.max(a.boost,3);a.hp=Math.min(a.max,a.hp+1)}}
  else{const b=closest(a,seenOpponents(a));if(!b)return;meteors.push({owner:a,x:b.x,y:b.y,t:.55,r:85,power:3});if(charmed)meteors.push({owner:a,x:b.x,y:b.y,t:1.05,r:65,power:1})}
  a.cool=h.cd-(charmed?0.5*profile.roster[a.kind].forge:0);
 }
@@ -196,7 +198,7 @@ function tactic(a){
 }
 function bot(a,dt){a.nav-=dt;a.think-=dt;if(!a.way||a.nav<=0||dist(a,a.way)<3){a.way=waypoint(a,tactic(a));a.nav=.45}
  const dx=a.way.x-a.x,dy=a.way.y-a.y;if(dx||dy)a.heading=Math.atan2(dy,dx);move(a,dx,dy,Math.min([88,111,138][profile.difficulty]*(a.boost?1.3:1)*(a.slow>.01?.65:1),Math.hypot(dx,dy)/dt),dt);
- if(a.think<=0){a.think=[.85,.42,.23][profile.difficulty];const b=closest(a,seenOpponents(a));if(b&&dist(a,b)<[210,275,330][profile.difficulty]){fire(a);if(profile.difficulty&&(!a.cool)&&(a.kind===0?dist(a,b)<112:a.kind===1?visible(a,b):a.kind===2?dist(a,b)<240:dist(a,b)<160)){if(a.kind===0)a.heading=Math.atan2(b.y-a.y,b.x-a.x);cast(a)}}}}
+ if(a.think<=0){a.think=[.85,.42,.23][profile.difficulty];const b=closest(a,seenOpponents(a));if(b&&dist(a,b)<[210,275,330][profile.difficulty]){fire(a);if(profile.difficulty&&(!a.cool)&&((a.kind===0||a.kind===7)?dist(a,b)<130:a.kind===1?visible(a,b):a.kind===2?dist(a,b)<240:dist(a,b)<160)){if(a.kind===0||a.kind===7)a.heading=Math.atan2(b.y-a.y,b.x-a.x);cast(a)}}}}
 function update(dt){
  left-=dt;spawnIn-=dt;lootIn-=dt;comboClock=Math.max(0,comboClock-dt);if(comboClock===0)combo=0;
  supply.wait-=dt;
@@ -267,4 +269,13 @@ $('importProgress').onclick=()=>{
   localStorage.setItem(profileKey,raw);location.reload();
  }catch{$('backupStatus').textContent='Помилка формату. Потрібен код профілю Іскра Арени.'}
 };
+function setTab(name){
+ $('lobby').dataset.tab=name;
+ document.querySelectorAll('.tab-panel').forEach(p=>{p.hidden=p.dataset.panel!==name});
+ document.querySelectorAll('.tab-btn').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===name)));
+ const panels=document.querySelector('.tab-panels');if(panels)panels.scrollTop=0;
+}
+document.querySelectorAll('.tab-btn').forEach(b=>{b.onclick=()=>setTab(b.dataset.tab)});
+document.querySelectorAll('[data-goto]').forEach(b=>{b.onclick=()=>setTab(b.dataset.goto)});
+setTab('play');
 lobby();function frame(now){const dt=Math.min(.034,(now-last)/1000);last=now;if(state==='play'&&dt>0){update(dt);draw()}requestAnimationFrame(frame)}requestAnimationFrame(frame);
