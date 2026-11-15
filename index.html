@@ -4,16 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#182840">
-  <meta name="description" content="Іскра Арена — яскрава українська PWA-гра. Вісім героїв, 20 рівнів розвитку, 7 режимів, кубки та власна дорога нагород.">
+  <meta name="description" content="Іскра Арена — яскрава українська PWA-гра. Вісім героїв, командні бої, джойстик прицілювання, щоденні квести та Іскрові скрині.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Іскра Арена">
   <title>Іскра Арена · Шлях героїв</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=3.1">
+  <link rel="manifest" href="./manifest.webmanifest?v=3.2">
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="apple-touch-icon" href="./icon-192.png">
-  <link rel="stylesheet" href="./style.css?v=3.1">
+  <link rel="stylesheet" href="./style.css?v=3.2">
 </head>
 <body>
 <main>
@@ -26,6 +26,7 @@
       </div>
     </div>
     <div class="topbar-right">
+      <button type="button" id="openChestBtn" class="chest-btn" aria-label="Відкрити Іскрову скриню">🎁 <span id="chestTokens">0/100</span></button>
       <button type="button" id="soundToggle" class="icon-btn" aria-label="Увімкнути або вимкнути звук">🔊</button>
       <span id="career" class="career"></span>
     </div>
@@ -36,9 +37,9 @@
       <!-- ВКЛАДКА 1: БІЙ (ГОЛОВНИЙ ЕКРАН) -->
       <div class="tab-panel" data-panel="play">
         <div class="season-banner">
-          <span>🌿 НОВИЙ СЕЗОН</span>
-          <strong>Шлях героїв</strong>
-          <p>20 рівнів кожного героя, кубки без витрат, нові режими «Маяк» і «Дуель» та нагороди за досягнення!</p>
+          <span>🌿 ОНОВЛЕННЯ 3.2</span>
+          <strong>Майстер Панді та Командний Бій</strong>
+          <p>Новий образ Панді, живі анімації бігу, джойстик точного прицілювання, союзник у бою та Іскрові скрині!</p>
         </div>
         <div class="play-grid">
           <section class="hero-sheet" aria-labelledby="heroName">
@@ -67,6 +68,7 @@
             <div class="launch-meta">
               <button type="button" class="pill-btn" data-goto="maps">🗺️ <span id="activeMapLabel">Арена</span></button>
               <button type="button" class="pill-btn" data-goto="heroes">✨ Змінити бійця</button>
+              <button type="button" class="pill-btn" id="teamToggle" aria-pressed="true">🤝 З союзником: Так</button>
             </div>
             <button type="button" class="primary" id="start">У БІЙ! <span aria-hidden="true">➜</span></button>
           </section>
@@ -94,7 +96,7 @@
             </section>
             <section class="card-box">
               <div class="section-eyebrow">🏆 МАЙСТЕРНЯ ГЕРОЯ</div>
-              <p class="small-note">🏆 Кубки піднімають рейтинг героя й ніколи не витрачаються. 🪙 Монети заробляй у боях і витрачай на шість ступенів поліпшень.</p>
+              <p class="small-note">🏆 Кубки піднімають рейтинг героя й ніколи не витрачаються. 🪙 Монети заробляй у боях, квестах і скринях та витрачай на поліпшення.</p>
               <div class="upgrades">
                 <button type="button" id="training"></button>
                 <button type="button" id="forge"></button>
@@ -119,20 +121,14 @@
         </section>
       </div>
 
-      <!-- ВКЛАДКА 4: ПРОФІЛЬ ТА ЗБЕРЕЖЕННЯ -->
+      <!-- ВКЛАДКА 4: ПРОФІЛЬ, КВЕСТИ ТА ЗБЕРЕЖЕННЯ -->
       <div class="tab-panel" data-panel="profile" hidden>
         <div class="panel-grid">
           <section class="card-box">
-            <div class="section-eyebrow">🎮 ІГРОВІ РЕЖИМИ</div>
-            <h2>Нові можливості</h2>
-            <ul class="tips-list">
-              <li><b>Кристали:</b> при нокауті зібрані кристали випадають на землю, а при 7+ кристалах вмикається 10-секундний таймер утримання!</li>
-              <li><b>Зіткнення:</b> розбивай ящики з кубиками сили (⚡+1 HP і +15% шкоди), підривай червоні бочки й тікай від отруйного туману.</li>
-              <li><b>Контроль маяка:</b> стій у світловій зоні без інших бійців, щоб набирати очки контролю.</li>
-              <li><b>Дуель:</b> один суперник і три нокаути — короткий бій на уважність.</li>
-              <li><b>Шлях кубків:</b> здобувай ранги героїв та монети за досягнення, не витрачаючи кубки.</li>
-              <li><b>Пружини та вода:</b> ставай на жовтий трамплін, щоб перелетіти через озеро або стіну прямо в засідку.</li>
-            </ul>
+            <div class="section-eyebrow">📜 ЩОДЕННІ ЗАВДАННЯ ТА СКРИНЯ</div>
+            <h2>Квести та Іскрова скриня</h2>
+            <p id="questSummary" class="small-note">Виконуй завдання у боях, збирай жетони (⚡) та відкривай Іскрові скрині з монетами та досвідом!</p>
+            <div id="questList" class="quest-list"></div>
           </section>
           <section class="card-box trophy-road">
             <div class="section-eyebrow">🏆 ШЛЯХ КУБКІВ</div>
@@ -141,7 +137,7 @@
             <div id="roadItems" class="road-items"></div>
             <h3>Майстерність героїв</h3>
             <div id="rosterStats" class="roster-stats"></div>
-            <p class="small-note">Кубки кожного героя підвищують його ранг. Після поразок на вищих рангах можна втратити трохи кубків, але вже відкриті нагороди та найвищий ранг зберігаються.</p>
+            <p class="small-note">Кубки кожного героя підвищують його ранг. Вже відкриті нагороди та найвищий ранг зберігаються назавжди.</p>
           </section>
           <section class="card-box backup">
             <div class="section-eyebrow">💾 ЗБЕРЕЖЕННЯ ПРОГРЕСУ</div>
@@ -179,6 +175,7 @@
         <b id="stealth" hidden>🌿 Укриття</b>
         <b id="streak" hidden></b>
         <b id="time"></b>
+        <button type="button" id="emoteBtn" aria-label="Емоція">😄</button>
         <button type="button" id="pause" aria-label="Пауза">Ⅱ</button>
       </div>
       <div id="modal" hidden>
@@ -203,13 +200,13 @@
 
   <p id="storageMsg" hidden>Збереження в цьому браузері недоступне. Прогрес діє до закриття гри.</p>
 </main>
-<script src="./data.js?v=3.1"></script>
-<script src="./art.js?v=3.1"></script>
-<script src="./game.js?v=3.1"></script>
+<script src="./data.js?v=3.2"></script>
+<script src="./art.js?v=3.2"></script>
+<script src="./game.js?v=3.2"></script>
 <script>
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=3.1', { scope: './', updateViaCache: 'none' }).then(reg => {
+    navigator.serviceWorker.register('./sw.js?v=3.2', { scope: './', updateViaCache: 'none' }).then(reg => {
       reg.update();
       reg.addEventListener('updatefound', () => {
         const nw = reg.installing;
