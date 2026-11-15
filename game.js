@@ -87,34 +87,94 @@ function sfx(type) {
 
 function newProfile() {
   return {
-    cups: 0, matches: 0, hero: 0, map: 0, difficulty: 0, rule: 0, banner: 0,
-    roster: heroes.map(() => ({ xp: 0, played: 0, training: 0, forge: 0, power: 0, wear: 0, charm: 0 }))
+    schemaVersion: 3, cups: 0, legacyTrophies: 0, coins: 0, matches: 0, wins: 0,
+    streak: 0, bestStreak: 0, roadClaimed: -1, modeWins: modes.map(() => 0),
+    hero: 0, map: 0, difficulty: 0, rule: 0, banner: 0,
+    roster: heroes.map(() => ({ xp: 0, played: 0, wins: 0, trophies: 0, bestTrophies: 0,
+      training: 0, forge: 0, power: 0, wear: 0, charm: 0 }))
   };
 }
+const safeInt = (x, max = 1e9) => Number.isSafeInteger(x) && x >= 0 && x <= max ? x : 0;
+const totalTrophies = () => profile.legacyTrophies + profile.roster.reduce((sum, r) => sum + r.trophies, 0);
 function readProfile() {
-  const p = newProfile(), int = (n, max) => Number.isInteger(n) && n >= 0 && n <= max ? n : 0;
+  const p = newProfile();
   try {
     const raw = JSON.parse(localStorage.getItem(profileKey));
-    if (!raw) return p;
-    for (const [key, max] of Object.entries({ cups: 1e9, matches: 1e8, hero: heroes.length - 1, map: maps.length - 1, difficulty: 2, rule: modes.length - 1, banner: 2 })) p[key] = int(raw[key], max);
+    if (!raw || !Array.isArray(raw.roster)) return p;
+    for (const [key, max] of Object.entries({ matches: 1e8, hero: heroes.length - 1, map: maps.length - 1, difficulty: 2, rule: modes.length - 1, banner: 2 })) p[key] = safeInt(raw[key], max);
     if (maps[p.map].unlock > p.matches) p.map = 0;
     p.roster.forEach((r, i) => {
-      const saved = raw.roster?.[i] || {};
-      r.training = int(saved.training, 3);
-      r.forge = int(saved.forge, 3);
-      r.power = int(saved.power, 3);
-      r.xp = int(saved.xp, 1e9);
-      r.played = int(saved.played, 1e8);
-      r.wear = int(saved.wear, levelOf(r.xp) >= 3 ? 2 : r.played ? 1 : 0);
-      r.charm = int(saved.charm, levelOf(r.xp) >= 2 ? 1 : 0);
+      const saved = raw.roster[i] || {};
+      r.training = safeInt(saved.training, 6);
+      r.forge = safeInt(saved.forge, 6);
+      r.power = safeInt(saved.power, 6);
+      r.xp = safeInt(saved.xp);
+      r.played = safeInt(saved.played, 1e8);
+      r.wins = safeInt(saved.wins, r.played);
+      r.trophies = safeInt(saved.trophies, 1e8);
+      r.bestTrophies = Math.max(r.trophies, safeInt(saved.bestTrophies, 1e8));
+      r.wear = safeInt(saved.wear, levelOf(r.xp) >= 3 ? 2 : r.played ? 1 : 0);
+      r.charm = safeInt(saved.charm, levelOf(r.xp) >= 2 ? 1 : 0);
     });
-  } catch {}
+    if (raw.schemaVersion >= 3) {
+      p.legacyTrophies = safeInt(raw.legacyTrophies);
+      p.coins = safeInt(raw.coins);
+      p.wins = safeInt(raw.wins, p.matches);
+      p.streak = safeInt(raw.streak, 1e5);
+      p.bestStreak = Math.max(p.streak, safeInt(raw.bestStreak, 1e5));
+      p.roadClaimed = Number.isInteger(raw.roadClaimed) && raw.roadClaimed >= -1 && raw.roadClaimed < roadMilestones.length ? raw.roadClaimed : -1;
+      if (Array.isArray(raw.modeWins)) p.modeWins = modes.map((_, i) => safeInt(raw.modeWins[i], 1e8));
+    } else {
+      // Старі кубки були валютою. Повертаємо також суми, витрачені на поліпшення,
+      // щоб загальний рейтинг не втрачав минулі досягнення; історію по героях не вигадуємо.
+      const oldCosts = [4, 8, 12];
+      const spent = p.roster.reduce((acc, r) => acc + ['training', 'forge', 'power'].reduce((sum, key) =>
+        sum + oldCosts.slice(0, Math.min(3, r[key])).reduce((x, cost) => x + cost, 0), 0), 0);
+      p.legacyTrophies = safeInt(raw.cups) + spent;
+      // Приблизна конвертація купівельної спроможності старих кубків у монети.
+      p.coins = Math.min(1e9, safeInt(raw.cups) * 8);
+      p.roadClaimed = roadMilestones.reduce((last, m, i) => p.legacyTrophies >= m.at ? i : last, -1);
+    }
+    p.cups = p.legacyTrophies + p.roster.reduce((sum, r) => sum + r.trophies, 0);
+  } catch (err) { console.warn('Не вдалося прочитати збереження:', err); }
   return p;
 }
 const profile = readProfile();
 function save() {
+  profile.cups = totalTrophies(); // поле лишається для сумісності експорту v2.x.
   try { localStorage.setItem(profileKey, JSON.stringify(profile)); }
   catch { $('storageMsg').hidden = false; }
+}
+function claimRoadRewards() {
+  const unlocked = [];
+  for (let i = profile.roadClaimed + 1; i < roadMilestones.length; i++) {
+    const m = roadMilestones[i];
+    if (totalTrophies() < m.at) break;
+    profile.coins += m.coins;
+    profile.roadClaimed = i;
+    unlocked.push(m);
+  }
+  return unlocked;
+}
+function renderRoad() {
+  const total = totalTrophies();
+  $('roadStats').textContent = `🏆 ${total} кубків · 🪙 ${profile.coins} монет · ${profile.wins} перемог · Серія ${profile.streak} (рекорд ${profile.bestStreak})`;
+  const upcoming = roadMilestones.filter((m, i) => i > profile.roadClaimed).slice(0, 4);
+  $('roadItems').replaceChildren(...upcoming.map(m => {
+    const el = document.createElement('div'); el.className = 'road-prize';
+    const count = document.createElement('strong'); count.textContent = '🏆 ' + m.at;
+    const prize = document.createElement('span'); prize.textContent = '+' + m.coins + ' 🪙';
+    const prog = document.createElement('progress'); prog.max = m.at; prog.value = Math.min(total, m.at);
+    el.append(count, prize, prog); return el;
+  }));
+  if (!upcoming.length) $('roadItems').textContent = 'Усі нагороди здобуто! Твій рейтинг продовжує зростати.';
+  $('rosterStats').replaceChildren(...heroes.map((h, i) => {
+    const r = profile.roster[i], el = document.createElement('div');
+    el.className = 'rank-item' + (i === profile.hero ? ' active' : '');
+    const left = document.createElement('strong'); left.textContent = h.name + ' · Рівень ' + levelOf(r.xp);
+    const right = document.createElement('span'); right.textContent = '🏆 ' + r.trophies + ' · ' + heroRankNames[rankOf(r.bestTrophies)];
+    el.append(left, right); return el;
+  }));
 }
 
 let state = 'menu', units = [], gems = [], loot = [], shots = [], meteors = [], rings = [], floatTexts = [], crates = [], water = [], pads = [], flag, previewGem, left, spawnIn, lootIn, supply, blocks, background;
@@ -194,21 +254,27 @@ function hunt(z, dt) {
   move(z, dx, dy, Math.min(82 + profile.difficulty * 12, Math.hypot(dx, dy) / dt), dt);
 }
 
-const cupRewards = [4, 7, 10];
-const upgradeCosts = [4, 8, 12];
+// Кубки — окремий рейтинг кожного героя. Монети — витратна валюта.
+const trophyWin = [6, 9, 12];
+const upgradeCosts = [32, 64, 104, 160, 232, 320];
+const upgradeLevelGates = [1, 2, 3, 5, 7, 10];
 function buyUpgrade(slot) {
   if (state !== 'menu') return;
-  const r = profile.roster[profile.hero], cost = upgradeCosts[r[slot]];
-  if (!cost || profile.cups < cost || (slot === 'forge' && levelOf(r.xp) < 2)) return;
-  profile.cups -= cost; r[slot]++; sfx('gem'); save(); lobby();
+  const r = profile.roster[profile.hero], tier = r[slot], cost = upgradeCosts[tier];
+  if (!['training', 'forge', 'power'].includes(slot) || !cost || profile.coins < cost ||
+      levelOf(r.xp) < upgradeLevelGates[tier] || (slot === 'forge' && levelOf(r.xp) < 2)) return;
+  profile.coins -= cost;
+  r[slot]++;
+  sfx('gem'); save(); lobby();
 }
-
 function workshop(r) {
-  for (const [slot, name] of [['training', 'Здоров’я +1'], ['forge', 'Амулет · відновлення −0,5 с'], ['power', 'Сила атаки +15%']]) {
-    const button = $(slot), cost = upgradeCosts[r[slot]], locked = slot === 'forge' && levelOf(r.xp) < 2;
+  for (const [slot, name] of [['training', 'Здоров’я +1 ♥'], ['forge', 'Перезарядка супер −0,3 с'], ['power', 'Сила атаки +12%']]) {
+    const button = $(slot), cost = upgradeCosts[r[slot]];
+    const need = cost ? Math.max(upgradeLevelGates[r[slot]], slot === 'forge' ? 2 : 1) : 0;
+    const locked = cost && levelOf(r.xp) < need;
     if (!button) continue;
-    button.textContent = name + ' · ' + r[slot] + '/3 · ' + (locked ? 'з рівня 2' : cost ? cost + ' 🏆' : 'Максимум');
-    button.disabled = locked || !cost || profile.cups < cost;
+    button.textContent = name + ' · ' + r[slot] + '/6 · ' + (locked ? 'з рівня ' + need : cost ? cost + ' 🪙' : 'МАКС');
+    button.disabled = Boolean(locked || !cost || profile.coins < cost);
     button.onclick = () => buyUpgrade(slot);
   }
 }
@@ -228,7 +294,7 @@ function lobby() {
   $('battle').hidden = true;
   $('lobby').hidden = false;
   const k = profile.hero, h = heroes[k], r = profile.roster[k], level = levelOf(r.xp), m = maps[profile.map];
-  $('career').textContent = '🏆 ' + profile.cups + ' · Бої: ' + profile.matches;
+  $('career').textContent = '🏆 ' + totalTrophies() + ' · 🪙 ' + profile.coins;
   workshop(r);
   $('heroName').textContent = h.name;
   $('role').textContent = roles[k];
@@ -261,28 +327,38 @@ function lobby() {
     c.width = 112; c.height = 108;
     const brushCtx = c.getContext('2d');
     sprite(brushCtx, i, 56, 60, 1.85, profile.roster[i].wear);
-    b.append(c, hero.name);
+    const nameTag = document.createElement('span'); nameTag.textContent = hero.name;
+    const rankTag = document.createElement('small');
+    rankTag.textContent = '🏆 ' + profile.roster[i].trophies + ' · ' + heroRankNames[rankOf(profile.roster[i].bestTrophies)];
+    b.append(c, nameTag, rankTag);
     b.setAttribute('aria-pressed', String(i === k));
     b.onclick = () => { profile.hero = i; sfx('tap'); save(); lobby(); };
     return b;
   }));
 
   $('desc').textContent = h.hint;
-  const limit = level === 1 ? 30 : 85;
-  $('bar').style.width = Math.min(100, r.xp / limit * 100) + '%';
-  $('level').textContent = 'Рівень ' + level + ' · ' + r.xp + ' досвіду' + (level < 3 ? ' · До ' + (level === 1 ? 'амулета' : 'зоряного образу') + ' ще ' + (limit - r.xp) : ' · Зоряний образ відкрито');
+  const currentXP = heroLevelXP[level - 1];
+  const nextXP = heroLevelXP[level] ?? currentXP;
+  $('bar').style.width = level >= heroLevelXP.length ? '100%' :
+    Math.min(100, (r.xp - currentXP) / Math.max(1, nextXP - currentXP) * 100) + '%';
+  $('level').textContent = 'Рівень ' + level + '/20 · ' + r.xp + ' XP' +
+    (level < 20 ? ' · До наступного ' + (nextXP - r.xp) + ' XP' : ' · Найвищий рівень!');
+  $('heroRank').textContent = '🏆 ' + r.trophies + ' кубків · Ранг ' + (rankOf(r.bestTrophies) + 1) + '/12 «' + heroRankNames[rankOf(r.bestTrophies)] + '» · ' + r.wins + ' перемог';
 
-  options('difficulty', tiers.map((x, i) => [invasion() ? x + ' · ' + invasionGoals[i].kills + ' зомбі' : x + ' · ' + (2 + i) + ' боти']), profile.difficulty);
+  options('difficulty', tiers.map((x, i) => [invasion() ? x + ' · ' + invasionGoals[i].kills + ' зомбі' : profile.rule === 6 ? x + ' · 1 суперник' : x + ' · ' + (2 + i) + ' боти']), profile.difficulty);
   options('rule', modes.map(x => [x]), profile.rule);
   options('banner', flags.map(x => [x]), profile.banner);
   options('wear', [['Базовий образ'], ['Золота стрічка' + (!r.played ? ' · за перший бій' : ''), !r.played], ['Зоряна стрічка' + (level < 3 ? ' · рівень 3' : ''), level < 3]], r.wear);
   options('charm', [['Без амулета'], [h.item + (level < 2 ? ' · рівень 2' : ''), level < 2]], r.charm);
   $('itemInfo').textContent = h.item + ' · ' + h.perk;
-  $('heroStats').textContent = '♥ ' + (h.hp + r.training) + ' здоров’я · ⚡ ' + h.speed + ' швидкість · 🎯 ' + Math.round(1 / h.rate * 10) / 10 + ' атаки/с · ✦ супер: ' + h.cd + ' с · Сила ' + (100 + r.power * 15) + '%';
+  $('heroStats').textContent = '♥ ' + (h.hp + r.training) + ' здоров’я · ⚡ ' + h.speed + ' швидкість · 🎯 ' + Math.round(1 / h.rate * 10) / 10 + ' атаки/с · ✦ супер: ' + h.cd + ' с · Сила ' + (100 + r.power * 12) + '%';
+  renderRoad();
   $('mission').textContent = invasion()
     ? 'Збери ' + quota().gems + ' кристалів і переможи ' + quota().kills + ' зомбі за ' + quota().seconds + ' с. Відступай, коли зомбі замахується.'
     : showdown()
       ? 'Зіткнення (Showdown): розбивай ящики з кубиками сили, тікай від отруйного туману й залишся останнім на арені!'
+      : profile.rule === 5 ? 'Контроль маяка: займи світлове коло в центрі арени. Очки йдуть, коли у зоні немає суперників. Перший до 65 виграє!'
+      : profile.rule === 6 ? 'Дуель: один суперник, три нокаути для перемоги. Уважно використовуй кущі й укриття!'
       : profile.rule === 1
         ? 'Забери прапор і повернись до своєї бази. Перший із трьома доставками перемагає.'
         : profile.rule === 3
@@ -333,7 +409,7 @@ function start() {
   stormInset = 0;
   stormTick = 0;
 
-  units = [...bases, { x: 80, y: 450 }, { x: 455, y: 35 }].slice(0, 3 + profile.difficulty).map((base, i) => {
+  units = [...bases, ...(typeof extraSpawns !== "undefined" ? extraSpawns : [{ x: 80, y: 450 }, { x: 255, y: 42 }])].slice(0, profile.rule === 6 ? 2 : 3 + profile.difficulty).map((base, i) => {
     const kind = i ? Math.floor(Math.random() * heroes.length) : profile.hero, h = heroes[kind];
     return {
       ...base, base, kind, i,
@@ -351,9 +427,9 @@ function start() {
   if (invasion()) {
     units.slice(1).forEach(z => { z.zombie = true; z.max = 2; zombieSpawn(z); });
   }
-  gems = (profile.rule === 1 || profile.rule === 3 || showdown()) ? [] : Array.from({ length: 5 }, point);
+  gems = (profile.rule === 0 || invasion()) ? Array.from({ length: 5 }, point) : [];
   loot = []; shots = []; meteors = []; rings = [];
-  left = invasion() ? quota().seconds : showdown() ? 110 : 95;
+  left = invasion() ? quota().seconds : showdown() ? 110 : profile.rule === 5 ? 125 : profile.rule === 6 ? 100 : 95;
   supply = { ...point(), wait: 12 };
   spawnIn = 2; lootIn = 5; previewGem = point();
   flag = { x: 460, y: 270, carrier: null };
@@ -412,30 +488,56 @@ function finish() {
   if (state !== 'play') return;
   state = 'result';
   clearInput();
-  const a = units[0];
+  const a = units[0], r = profile.roster[a.kind];
   let win = false;
   if (invasion()) win = cleared();
   else if (showdown()) win = !a.eliminated && !a.dead && units.slice(1).every(b => b.eliminated || b.dead);
-  else if (profile.rule === 0 && countdownLeader) win = countdownLeader === a;
+  else if (profile.rule === 0 && countdownLeader && gemCountdown <= 0) win = countdownLeader === a;
   else {
     const best = Math.max(...units.filter(b => !b.zombie).map(b => b.score));
     win = a.score === best && units.filter(b => b.score === best).length === 1;
   }
   if (win) sfx('win'); else sfx('ko');
-  const r = profile.roster[a.kind], prev = levelOf(r.xp), xp = 12 + Math.min(14, a.picks * 2) + (win ? 8 : 0);
-  const reward = win ? cupRewards[profile.difficulty] : 0;
-  profile.cups += reward; r.xp += xp; r.played++; profile.matches++;
+  const prev = levelOf(r.xp);
+  const xp = 12 + Math.min(14, a.picks * 2) + (win ? 8 : 0) +
+    (profile.rule === 5 ? Math.min(8, Math.floor(a.score / 10)) : 0);
+  const oldTrophies = r.trophies;
+  const streakBonus = win ? Math.min(4, profile.streak) : 0;
+  const trophyDelta = win ? trophyWin[profile.difficulty] + streakBonus :
+    -Math.min(r.trophies, r.trophies < 25 ? 0 : r.trophies < 80 ? 2 : r.trophies < 250 ? 3 : 5);
+  const coins = 12 + profile.difficulty * 7 + (win ? 13 : 0) + Math.min(10, a.picks * 2);
+  r.trophies = Math.max(0, r.trophies + trophyDelta);
+  r.bestTrophies = Math.max(r.bestTrophies, r.trophies);
+  r.xp += xp;
+  r.played++;
+  profile.coins += coins;
+  profile.matches++;
+  if (win) {
+    profile.wins++; r.wins++; profile.modeWins[profile.rule]++;
+    profile.streak++; profile.bestStreak = Math.max(profile.bestStreak, profile.streak);
+  } else profile.streak = 0;
+  const road = claimRoadRewards();
   save();
   const earned = [];
   if (r.played === 1) earned.push(['wear', 1, 'Золота стрічка']);
   if (prev < 2 && levelOf(r.xp) >= 2) earned.push(['charm', 1, heroes[a.kind].item]);
-  if (prev < 3 && levelOf(r.xp) === 3) earned.push(['wear', 2, 'Зоряна стрічка']);
+  if (prev < 3 && levelOf(r.xp) >= 3) earned.push(['wear', 2, 'Зоряна стрічка']);
   const arena = maps.find(m => m.unlock === profile.matches);
-  $('overline').textContent = heroes[a.kind].name + ' · +' + xp + ' досвіду · +' + reward + ' 🏆';
-  const scoreMsg = invasion() ? tally() : showdown() ? ('Кубики сили: ' + (a.cubes || 0) + ' · Залишилось бійців: ' + units.filter(u => !u.eliminated).length) : ('Рахунок: ' + units.map(b => b.score).join(' / '));
+  $('overline').textContent = heroes[a.kind].name + ' · +' + xp + ' XP · ' +
+    (trophyDelta >= 0 ? '+' : '') + trophyDelta + ' 🏆 · +' + coins + ' 🪙';
+  const scoreMsg = invasion() ? tally() : showdown()
+    ? 'Кубики сили: ' + (a.cubes || 0) + ' · Твоя позиція: ' + (1 + units.slice(1).filter(u => !u.eliminated).length)
+    : profile.rule === 5 ? 'Очки контролю: ' + Math.floor(a.score) + '/65'
+    : 'Рахунок: ' + units.map(b => Math.floor(b.score)).join(' / ');
+  const newRank = rankOf(r.bestTrophies) > rankOf(oldTrophies)
+    ? 'Новий ранг: ' + heroRankNames[rankOf(r.bestTrophies)] + '! ' : '';
+  const rewards = road.map(m => 'Нагорода шляху кубків: +' + m.coins + ' 🪙. ').join('');
   modal(
     win ? 'Перемога!' : showdown() && a.eliminated ? 'Тебе вибито!' : invasion() ? 'Час вичерпано' : 'Бій завершено',
-    scoreMsg + '. ' + (arena ? 'Нова арена: ' + arena.name + '. ' : '') + earned.map(e => 'Здобич: ' + e[2] + '.').join(' '),
+    scoreMsg + '. ' + newRank + rewards +
+      (win && profile.streak > 1 ? 'Серія перемог ×' + profile.streak + '! ' : '') +
+      (arena ? 'Нова арена: ' + arena.name + '. ' : '') +
+      earned.map(e => 'Здобич: ' + e[2] + '.').join(' '),
     'До героїв'
   );
   if (win) {
@@ -458,28 +560,106 @@ function finish() {
 
 function move(a, dx, dy, speed, dt) {
   const len = Math.max(1, Math.hypot(dx, dy));
-  const x = a.x + dx / len * speed * dt, y = a.y + dy / len * speed * dt;
+  const step = speed * dt;
+  const vx = (dx / len) * step, vy = (dy / len) * step;
   const check = a.jumpTime > 0 ? blockedWall : blockedWalk;
-  if (!check(x, a.y, 14)) a.x = x;
-  if (!check(a.x, y, 14)) a.y = y;
+  const r = 13.5;
+
+  // Якщо персонаж опинився всередині перешкоди — м'яко виштовхуємо у вільну точку
+  if (check(a.x, a.y, r)) {
+    for (let rad = 4; rad <= 36; rad += 4) {
+      let freed = false;
+      for (const [ox, oy] of [[1,0],[-1,0],[0,1],[0,-1],[.7,.7],[-.7,.7],[.7,-.7],[-.7,-.7]]) {
+        if (!check(a.x + ox * rad, a.y + oy * rad, r)) {
+          a.x += ox * rad; a.y += oy * rad; freed = true; break;
+        }
+      }
+      if (freed) break;
+    }
+  }
+
+  let movedX = false, movedY = false;
+  if (!check(a.x + vx, a.y, r)) {
+    a.x += vx; movedX = true;
+  } else if (Math.abs(vx) > 0.05) {
+    // Ковзання вздовж кутів по вертикалі, коли рух по X вперся в кут перешкоди
+    for (const dir of [1, -1]) {
+      if (!check(a.x + vx * 0.5, a.y + dir * 5, r) && !check(a.x, a.y + dir * step * 0.75, r)) {
+        a.y += dir * step * 0.75; break;
+      }
+    }
+  }
+
+  if (!check(a.x, a.y + vy, r)) {
+    a.y += vy; movedY = true;
+  } else if (Math.abs(vy) > 0.05 && !movedX) {
+    // Ковзання вздовж кутів по горизонталі, коли рух по Y вперся в кут перешкоди
+    for (const dir of [1, -1]) {
+      if (!check(a.x + dir * 5, a.y + vy * 0.5, r) && !check(a.x + dir * step * 0.75, a.y, r)) {
+        a.x += dir * step * 0.75; break;
+      }
+    }
+  }
 }
 
 function waypoint(a, g) {
-  const size = 20, cols = 46, rows = 27, index = (x, y) => Math.floor(y / size) * cols + Math.floor(x / size), start = index(a.x, a.y), goal = index(g.x, g.y);
+  const size = 20, cols = 46, rows = 27;
+  const clampCell = (cx, cy) => Math.max(0, Math.min(rows - 1, cy)) * cols + Math.max(0, Math.min(cols - 1, cx));
+  const index = (x, y) => clampCell(Math.floor(x / size), Math.floor(y / size));
+  const cellCenter = id => ({ x: (id % cols) * size + 10, y: Math.floor(id / cols) * size + 10 });
+  const passable = id => { const c = cellCenter(id); return !blockedWalk(c.x, c.y, 13.5); };
+
+  let start = index(a.x, a.y), goal = index(g.x, g.y);
+  // Якщо стартова або цільова клітинка заблокована, шукаємо найближчу вільну сусідню клітинку
+  if (!passable(start)) {
+    const sx = start % cols, sy = Math.floor(start / cols);
+    for (let d = 1; d <= 3; d++) {
+      let found = -1;
+      for (let dy = -d; dy <= d; dy++) for (let dx = -d; dx <= d; dx++) {
+        const nid = clampCell(sx + dx, sy + dy);
+        if (passable(nid)) { found = nid; break; }
+      }
+      if (found >= 0) { start = found; break; }
+    }
+  }
+  if (!passable(goal)) {
+    const gx = goal % cols, gy = Math.floor(goal / cols);
+    for (let d = 1; d <= 4; d++) {
+      let found = -1;
+      for (let dy = -d; dy <= d; dy++) for (let dx = -d; dx <= d; dx++) {
+        const nid = clampCell(gx + dx, gy + dy);
+        if (passable(nid)) { found = nid; break; }
+      }
+      if (found >= 0) { goal = found; break; }
+    }
+  }
   if (start === goal) return g;
+
   const queue = [start], prev = new Map([[start, -1]]);
+  let closestId = start, closestDist = Infinity;
   for (let k = 0; k < queue.length; k++) {
     const id = queue[k];
     if (id === goal) {
       let n = id;
-      while (prev.get(n) !== start) n = prev.get(n);
-      return { x: n % cols * size + 10, y: Math.floor(n / cols) * size + 10 };
+      while (prev.get(n) !== start && prev.has(n)) n = prev.get(n);
+      return cellCenter(n);
     }
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const x = id % cols + dx, y = Math.floor(id / cols) + dy, n = y * cols + x;
-      if (x < 0 || y < 0 || x >= cols || y >= rows || prev.has(n) || blockedWalk(x * size + 10, y * size + 10, 15)) continue;
+    const c = cellCenter(id), dGoal = Math.hypot(c.x - g.x, c.y - g.y);
+    if (dGoal < closestDist && id !== start) { closestDist = dGoal; closestId = id; }
+
+    const cx = id % cols, cy = Math.floor(id / cols);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const nx = cx + dx, ny = cy + dy, n = ny * cols + nx;
+      if (nx < 0 || ny < 0 || nx >= cols || ny >= rows || prev.has(n) || !passable(n)) continue;
+      // Для діагонального кроку перевіряємо обидві суміжні клітинки, щоб бот не зрізав крізь кут стіни
+      if (dx && dy && (!passable(cy * cols + nx) || !passable(ny * cols + cx))) continue;
       prev.set(n, id); queue.push(n);
     }
+  }
+  if (closestId !== start) {
+    let n = closestId;
+    while (prev.get(n) !== start && prev.has(n)) n = prev.get(n);
+    return cellCenter(n);
   }
   return g;
 }
@@ -581,7 +761,7 @@ function hit(b, n, attacker) {
   if (b.dead || b.eliminated || b.shield > 0 || b.dome > 0) return;
   const upgrade = attacker && !attacker.i && !attacker.zombie ? profile.roster[attacker.kind].power : 0;
   const cubeBonus = attacker ? (attacker.cubes || 0) * 0.15 : 0;
-  const dmg = Math.round(n * (1 + upgrade * .15 + cubeBonus) * 10) / 10;
+  const dmg = Math.round(n * (1 + upgrade * .12 + cubeBonus) * 10) / 10;
   b.hp -= dmg;
   b.outOfCombat = 0;
   b.reveal = Math.max(b.reveal || 0, .5);
@@ -605,19 +785,20 @@ function hit(b, n, attacker) {
   rings.push({ x: b.x, y: b.y, r: 32, t: .4, color: '#ffe7a1' });
   if (!b.zombie) sfx('ko');
   if (b.zombie) { kills++; gems.push({ x: b.x, y: b.y }); return; }
+  if (attacker === units[0] && b !== attacker) eliminations++;
 
   // Режим Зіткнення (Showdown): вибулий залишає кубик сили і більше не відроджується
   if (showdown()) {
     b.eliminated = true;
     loot.push({ x: b.x, y: b.y, kind: 'cube' });
-    if (attacker && !attacker.i) { eliminations++; a_score_bump(attacker); }
+    if (attacker && !attacker.i) { a_score_bump(attacker); }
     if (b === units[0] || units.slice(1).every(u => u.eliminated)) setTimeout(finish, 350);
     return;
   }
 
-  if (profile.rule === 3 && attacker && attacker !== b && !attacker.zombie) {
+  if ((profile.rule === 3 || profile.rule === 6) && attacker && attacker !== b && !attacker.zombie) {
     attacker.score++; attacker.picks++;
-    if (!attacker.i) { eliminations++; combo = comboClock > 0 ? combo + 1 : 1; comboClock = 7; }
+    if (!attacker.i) { combo = comboClock > 0 ? combo + 1 : 1; comboClock = 7; }
   }
   if (flag.carrier === b) { flag = { x: b.x, y: b.y, carrier: null }; }
 
@@ -724,7 +905,7 @@ function cast(a) {
     meteors.push({ owner: a, x: b.x, y: b.y, t: .55, r: 85, power: 3 });
     if (charmed) meteors.push({ owner: a, x: b.x, y: b.y, t: 1.05, r: 65, power: 1 });
   }
-  a.cool = h.cd - (charmed ? 0.5 * profile.roster[a.kind].forge : 0);
+  a.cool = h.cd - (charmed ? 0.3 * profile.roster[a.kind].forge : 0);
 }
 
 function objective(a) {
@@ -736,7 +917,8 @@ function objective(a) {
     return closest(a, seenOpponents(a)) || { x: W / 2, y: H / 2 };
   }
   if (profile.rule === 1) return flag.carrier === a ? a.base : (flag.carrier && visible(a, flag.carrier) ? flag.carrier : flag);
-  if (profile.rule === 3) return closest(a, seenOpponents(a)) || closest(a, loot) || { x: 460, y: 270 };
+  if (profile.rule === 3 || profile.rule === 6) return closest(a, seenOpponents(a)) || { x: 460, y: 270 };
+  if (profile.rule === 5) return { x: 460, y: 270 };
   if (profile.rule === 0 && countdownLeader && countdownLeader !== a && visible(a, countdownLeader)) return countdownLeader;
   if (!profile.difficulty) return closest(a, gems) || { x: 460, y: 270 };
   let best = null, min = Infinity;
@@ -777,7 +959,24 @@ function tactic(a) {
 
 function bot(a, dt) {
   a.nav -= dt; a.think -= dt;
-  if (!a.way || a.nav <= 0 || dist(a, a.way) < 3) { a.way = waypoint(a, tactic(a)); a.nav = .45; }
+  const movedDist = a.prevX !== undefined ? Math.hypot(a.x - a.prevX, a.y - a.prevY) : 5;
+  a.prevX = a.x; a.prevY = a.y;
+  if (movedDist < 0.35) a.stuckTime = (a.stuckTime || 0) + dt;
+  else a.stuckTime = 0;
+
+  if (!a.way || a.nav <= 0 || dist(a, a.way) < 6 || a.stuckTime > 0.28) {
+    if (a.stuckTime > 0.28) {
+      const dirs = [[1,0],[-1,0],[0,1],[0,-1],[.7,.7],[-.7,.7],[.7,-.7],[-.7,-.7]]
+        .map(([ox, oy]) => ({ x: a.x + ox * 48, y: a.y + oy * 48 }))
+        .filter(p => !blockedWalk(p.x, p.y, 14));
+      a.way = dirs.length ? dirs[Math.floor(Math.random() * dirs.length)] : waypoint(a, { x: W / 2, y: H / 2 });
+      a.stuckTime = 0;
+      a.nav = .35;
+    } else {
+      a.way = waypoint(a, tactic(a));
+      a.nav = .38;
+    }
+  }
   const dx = a.way.x - a.x, dy = a.way.y - a.y;
   if (dx || dy) a.heading = Math.atan2(dy, dx);
   move(a, dx, dy, Math.min([88, 111, 138][profile.difficulty] * (a.boost ? 1.3 : 1) * (a.slow > .01 ? .65 : 1), Math.hypot(dx, dy) / dt), dt);
@@ -790,7 +989,7 @@ function bot(a, dt) {
         if (a.kind === 0 || a.kind === 7) a.heading = Math.atan2(b.y - a.y, b.x - a.x);
         cast(a);
       }
-    } else if (crates.length) {
+    } else if (crates.length && profile.rule !== 5) {
       const cr = closest(a, crates);
       if (cr && dist(a, cr) < 190) fire(a);
     }
@@ -806,7 +1005,7 @@ function update(dt) {
     loot.push({ x: supply.x, y: supply.y, kind: 'supply' });
     supply = { ...point(), wait: 20 };
   }
-  if (profile.rule !== 1 && profile.rule !== 3 && !showdown() && spawnIn <= 0 && gems.length < 9) {
+  if ((profile.rule === 0 || invasion()) && spawnIn <= 0 && gems.length < 9) {
     gems.push(previewGem); previewGem = point(); spawnIn = 1.8;
   }
   if (lootIn <= 0) {
@@ -900,8 +1099,8 @@ function update(dt) {
       if (!flag.carrier && dist(a, flag) < 22) { flag.carrier = a; if (!a.i) sfx('gem'); }
       if (flag.carrier === a && dist(a, a.base) < 29) { a.score++; a.picks++; if (!a.i) sfx('super'); flag = { x: 460, y: 270, carrier: null }; }
       if (a.score >= 3) { finish(); return; }
-    } else if (profile.rule === 3) {
-      if (a.score >= 8) { finish(); return; }
+    } else if (profile.rule === 3 || profile.rule === 6) {
+      if (a.score >= (profile.rule === 6 ? 3 : 8)) { finish(); return; }
     } else if (profile.rule === 0 || invasion()) {
       collect(a);
       if (invasion() && cleared()) { finish(); return; }
@@ -929,7 +1128,18 @@ function update(dt) {
     }
   }
 
-  // Зворотний відлік 10 секунд у режимі «Кристали» (Gem Grab), як у Brawl Stars!
+  // Контроль маяка: зону зараховуємо тільки єдиному живому бійцю в радіусі.
+  if (profile.rule === 5) {
+    const center = { x: 460, y: 270 };
+    const occupiers = units.filter(u => !u.dead && !u.eliminated && dist(u, center) < 98);
+    if (occupiers.length === 1) {
+      const leader = occupiers[0];
+      leader.score = Math.min(65, leader.score + dt * 3);
+      if (leader.score >= 65) { finish(); return; }
+    }
+  }
+
+  // Зворотний відлік 10 секунд у режимі «Кристали».
   if (profile.rule === 0) {
     const aliveUnits = units.filter(u => !u.zombie);
     const maxGems = Math.max(...aliveUnits.map(u => u.score));
@@ -1005,9 +1215,9 @@ function hud() {
     $('score').textContent = '☣ Бійців: ' + aliveCount + '/' + units.length + ' · ⚡ Куби: ' + (a.cubes || 0);
   } else {
     const bestBot = Math.max(0, ...units.slice(1).map(b => b.score));
-    const goal = profile.rule === 1 ? 3 : profile.rule === 3 ? 8 : 7;
-    const icon = profile.rule === 1 ? '⚑ ' : profile.rule === 3 ? '⚔ ' : '◆ ';
-    $('score').textContent = icon + 'Ти ' + a.score + '/' + goal + ' · Лідер ботів: ' + bestBot;
+    const goal = profile.rule === 1 || profile.rule === 6 ? 3 : profile.rule === 3 ? 8 : profile.rule === 5 ? 65 : 7;
+    const icon = profile.rule === 1 ? '⚑ ' : profile.rule === 3 || profile.rule === 6 ? '⚔ ' : profile.rule === 5 ? '◎ ' : '◆ ';
+    $('score').textContent = icon + 'Ти ' + Math.floor(a.score) + '/' + goal + ' · Лідер ботів: ' + Math.floor(bestBot);
   }
   $('streak').textContent = (profile.rule === 0 && countdownLeader)
     ? (countdownLeader === a ? '🔥 Утримай кристали!' : '⚠️ Зупини лідера!')
@@ -1031,13 +1241,24 @@ function draw() {
   ctx.setTransform(s * ratio, 0, 0, s * ratio, -camX * s * ratio, -camY * s * ratio);
   ctx.drawImage(background, 0, 0);
   drawJumpPads(ctx, pads, left);
+  if (profile.rule === 5) {
+    const active = units.filter(u => !u.dead && !u.eliminated && dist(u, {x:460,y:270}) < 98);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(460, 270, 98, 0, Math.PI * 2);
+    ctx.fillStyle = active.length === 1 ? (active[0] === a ? '#48f7b42e' : '#ff766d38') : '#f8e6a51e';
+    ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = active.length === 1 ? (active[0] === a ? '#75ffd0' : '#ff9e83') : '#ffdf8b'; ctx.stroke();
+    ctx.beginPath(); ctx.arc(460, 270, 22, 0, Math.PI * 2);
+    ctx.fillStyle = '#2a4162'; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = '#ffe18c'; ctx.stroke();
+    star(ctx, 460, 270, 12, '#ffe89d');
+    ctx.restore();
+  }
   drawBrush(ctx, brush, 0, profile.map);
   drawBrush(ctx, temporaryBrush, 0, 5);
 
   for (const cr of crates) drawCrate(ctx, cr);
 
   for (const b of units) {
-    if (b.zombie || showdown()) continue;
+    if (b.zombie || showdown() || profile.rule === 5 || profile.rule === 6) continue;
     const p = b.base;
     oval(ctx, p.x, p.y, 28, 14, b.i ? '#944e623d' : '#33968960');
     banner(ctx, p.x - 16, p.y - 2, b.i ? (profile.banner + b.i) % 3 : profile.banner, .63);

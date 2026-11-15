@@ -4,16 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#182840">
-  <meta name="description" content="Іскра Арена — яскрава українська PWA-гра. Вісім героїв, зарості для засідок, трампліни, ящики та п’ять режимів бою.">
+  <meta name="description" content="Іскра Арена — яскрава українська PWA-гра. Вісім героїв, 20 рівнів розвитку, 7 режимів, кубки та власна дорога нагород.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Іскра Арена">
-  <title>Іскра Арена · Сезон Панді</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=2.5">
+  <title>Іскра Арена · Шлях героїв</title>
+  <link rel="manifest" href="./manifest.webmanifest?v=3.1">
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
   <link rel="apple-touch-icon" href="./icon-192.png">
-  <link rel="stylesheet" href="./style.css?v=2.5">
+  <link rel="stylesheet" href="./style.css?v=3.1">
 </head>
 <body>
 <main>
@@ -22,7 +22,7 @@
       <span class="mark" aria-hidden="true">✦</span>
       <div>
         <strong>ІСКРА <em>АРЕНА</em></strong>
-        <small>Кишенькові пригоди • Сезон Панді</small>
+        <small>Кишенькові пригоди • Шлях героїв</small>
       </div>
     </div>
     <div class="topbar-right">
@@ -37,8 +37,8 @@
       <div class="tab-panel" data-panel="play">
         <div class="season-banner">
           <span>🌿 НОВИЙ СЕЗОН</span>
-          <strong>Бамбукові секрети</strong>
-          <p>Випробуй режим «Зіткнення», стрибай на трамплінах і зіграй за оновлених бійців!</p>
+          <strong>Шлях героїв</strong>
+          <p>20 рівнів кожного героя, кубки без витрат, нові режими «Маяк» і «Дуель» та нагороди за досягнення!</p>
         </div>
         <div class="play-grid">
           <section class="hero-sheet" aria-labelledby="heroName">
@@ -52,6 +52,7 @@
             <div class="mastery">
               <small id="level"></small>
               <div class="xp"><i id="bar"></i></div>
+              <small id="heroRank" class="hero-rank"></small>
             </div>
           </section>
 
@@ -93,7 +94,7 @@
             </section>
             <section class="card-box">
               <div class="section-eyebrow">🏆 МАЙСТЕРНЯ ГЕРОЯ</div>
-              <p class="small-note">Кубки за перемогу: 4 / 7 / 10 залежно від складності. Купуй посилення улюбленому герою.</p>
+              <p class="small-note">🏆 Кубки піднімають рейтинг героя й ніколи не витрачаються. 🪙 Монети заробляй у боях і витрачай на шість ступенів поліпшень.</p>
               <div class="upgrades">
                 <button type="button" id="training"></button>
                 <button type="button" id="forge"></button>
@@ -122,13 +123,25 @@
       <div class="tab-panel" data-panel="profile" hidden>
         <div class="panel-grid">
           <section class="card-box">
-            <div class="section-eyebrow">🎮 МЕХАНІКИ BRAWL STARS</div>
+            <div class="section-eyebrow">🎮 ІГРОВІ РЕЖИМИ</div>
             <h2>Нові можливості</h2>
             <ul class="tips-list">
-              <li><b>Кристали (Gem Grab):</b> при нокауті зібрані кристали випадають на землю, а при 7+ кристалах вмикається 10-секундний таймер утримання!</li>
-              <li><b>Зіткнення (Showdown):</b> розбивай ящики з кубиками сили (⚡+1 HP і +15% шкоди), підривай червоні бочки й тікай від отруйного туману.</li>
+              <li><b>Кристали:</b> при нокауті зібрані кристали випадають на землю, а при 7+ кристалах вмикається 10-секундний таймер утримання!</li>
+              <li><b>Зіткнення:</b> розбивай ящики з кубиками сили (⚡+1 HP і +15% шкоди), підривай червоні бочки й тікай від отруйного туману.</li>
+              <li><b>Контроль маяка:</b> стій у світловій зоні без інших бійців, щоб набирати очки контролю.</li>
+              <li><b>Дуель:</b> один суперник і три нокаути — короткий бій на уважність.</li>
+              <li><b>Шлях кубків:</b> здобувай ранги героїв та монети за досягнення, не витрачаючи кубки.</li>
               <li><b>Пружини та вода:</b> ставай на жовтий трамплін, щоб перелетіти через озеро або стіну прямо в засідку.</li>
             </ul>
+          </section>
+          <section class="card-box trophy-road">
+            <div class="section-eyebrow">🏆 ШЛЯХ КУБКІВ</div>
+            <h2>Нагороди за прогрес</h2>
+            <p id="roadStats" class="road-summary"></p>
+            <div id="roadItems" class="road-items"></div>
+            <h3>Майстерність героїв</h3>
+            <div id="rosterStats" class="roster-stats"></div>
+            <p class="small-note">Кубки кожного героя підвищують його ранг. Після поразок на вищих рангах можна втратити трохи кубків, але вже відкриті нагороди та найвищий ранг зберігаються.</p>
           </section>
           <section class="card-box backup">
             <div class="section-eyebrow">💾 ЗБЕРЕЖЕННЯ ПРОГРЕСУ</div>
@@ -190,13 +203,13 @@
 
   <p id="storageMsg" hidden>Збереження в цьому браузері недоступне. Прогрес діє до закриття гри.</p>
 </main>
-<script src="./data.js?v=2.5"></script>
-<script src="./art.js?v=2.5"></script>
-<script src="./game.js?v=2.5"></script>
+<script src="./data.js?v=3.1"></script>
+<script src="./art.js?v=3.1"></script>
+<script src="./game.js?v=3.1"></script>
 <script>
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=2.5', { scope: './', updateViaCache: 'none' }).then(reg => {
+    navigator.serviceWorker.register('./sw.js?v=3.1', { scope: './', updateViaCache: 'none' }).then(reg => {
       reg.update();
       reg.addEventListener('updatefound', () => {
         const nw = reg.installing;

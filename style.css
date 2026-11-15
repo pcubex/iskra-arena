@@ -71,7 +71,7 @@ main {
   overflow: hidden;
 }
 
-/* ФІРМОВА ТИПОГРАФІКА BRAWL STARS З КОНТУРОМ ТА ОБ’ЄМНОЮ ТІННЮ */
+/* Авторська аркадна типографіка з контрастним контуром. */
 h1, h2, .identity strong, .career, .season-banner strong, .tab-btn small, #start, #hud > *, #controls button {
   font-family: var(--font-display);
 }
@@ -822,3 +822,24 @@ footer#help { flex: 0 0 auto; margin: 0; text-align: center; font-size: 11px; co
 @media (prefers-reduced-motion: reduce) {
   button { transition: none; }
 }
+
+/* ПРОГРЕС: КУБКИ, РАНГИ, ШЛЯХ НАГОРОД */
+.hero-rank { display: block; margin-top: 6px; color: #ffe496; font-size: 11.5px; font-weight: 850; }
+#heroes > button { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+#heroes > button > span { font-weight: 900; }
+#heroes > button > small { color: #ffe496; font-size: 9.5px; max-width: 120px; line-height: 1.25; }
+.road-summary { color: #fff1b8; font-size: 13.5px; font-weight: 800; }
+.road-items { display: grid; grid-template-columns: repeat(auto-fit,minmax(125px,1fr)); gap: 8px; margin: 12px 0; }
+.road-prize { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px; padding: 10px; border: 2px solid #526d8e; border-radius: 13px; background: #263a59; font-size: 12px; }
+.road-prize strong { color: #ffe38e; }
+.road-prize span { color: #9ef5ca; font-weight: 850; }
+.road-prize progress { width: 100%; grid-column: 1 / -1; height: 9px; accent-color: #ffe18c; }
+.trophy-road h3 { font-size: 14px; color: #e6f5ff; margin: 12px 0 7px; }
+.roster-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px,1fr)); gap: 6px; }
+.rank-item { border-radius: 10px; padding: 9px 10px; background: #21324b; display: flex; flex-direction: column; gap: 3px; font-size: 11px; }
+.rank-item.active { outline: 2px solid #ffe18c; }
+.rank-item strong { color: #e7f7ff; }
+.rank-item span { color: #ffe38e; }
+@media (max-width: 430px) { .career { font-size: 11px; padding: 6px; } .road-items {grid-template-columns: repeat(2,minmax(0,1fr));} }
+/* Власний рейтинг та Шлях кубків — перший екран вкладки профілю. */
+.tab-panel[data-panel="profile"] .trophy-road { order: -1; }

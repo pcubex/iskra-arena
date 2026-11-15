@@ -1,6 +1,6 @@
 'use strict';
 const CACHE_PREFIX = 'iskra-arena-';
-const VERSION = 'iskra-arena-pandi-v2.5';
+const VERSION = 'iskra-arena-heroes-v3.0';
 const APP_ROOT = new URL('./', self.registration.scope);
 const FILES = [
   './',
